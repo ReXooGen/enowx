@@ -132,6 +132,8 @@ type Session struct {
 	worked     time.Duration // how long the agent worked, as the watch saw
 	tick       time.Time     // the watch's last look, for worked
 	overBudget bool
+
+	promptWaiting bool // an interactive keyboard dialog inferred from the screen
 }
 
 // DoneFor is how long the session's agent has been done (its hooks said
@@ -139,7 +141,7 @@ type Session struct {
 func (s *Session) DoneFor(now time.Time) time.Duration {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.exited || s.state != proto.StateDone || s.active {
+	if s.exited || s.promptWaiting || s.state != proto.StateDone || s.active {
 		return 0
 	}
 	since := s.stateAt
@@ -230,6 +232,7 @@ func (s *Session) NoteInput(p []byte) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.lastInput = time.Now()
+	s.promptWaiting = false
 	if s.state == proto.StateWaiting || s.state == proto.StateDone && bytes.ContainsAny(p, "\r\n") {
 		s.state = ""
 	}
@@ -279,6 +282,9 @@ func truncate(s string, n int) string {
 func (s *Session) stateLocked(now time.Time) string {
 	if s.exited {
 		return ""
+	}
+	if s.promptWaiting {
+		return proto.StateWaiting
 	}
 	if s.state == proto.StateWorking && now.Sub(s.stateAt) > staleWorking && now.Sub(s.lastChange) > staleWorking {
 		return ""
@@ -464,6 +470,7 @@ func (m *Manager) watchActivity(s *Session) {
 	defer t.Stop()
 	var checked time.Time // when the mirror last checked the screen
 	resync := false       // the mirror missed what streams saw
+	var input inputObserver
 	for {
 		select {
 		case <-s.done:
@@ -491,6 +498,7 @@ func (m *Manager) watchActivity(s *Session) {
 			}
 			resync = false
 		}
+		input.check(s, now)
 		s.mu.Lock()
 		active := !s.exited && !s.lastChange.IsZero() && now.Sub(s.lastChange) < activeFor
 		changed := active != s.active
@@ -549,6 +557,7 @@ func (m *Manager) SetState(s *Session, state string) error {
 	now := time.Now()
 	s.mu.Lock()
 	s.state, s.stateAt = state, now
+	s.promptWaiting = false
 	changed := s.stateChanged(now)
 	s.mu.Unlock()
 	if changed {

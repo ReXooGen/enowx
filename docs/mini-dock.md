@@ -4,6 +4,8 @@ Enable **Mini dock when minimized** in **Settings → App** to keep a small sess
 
 The compact dock counts working sessions and sessions needing attention (waiting for input or exited with an error). Click the summary to expand its list, ordered by attention, working, then the rest. **Host** filters the list by This PC or a saved host; it does not change the summary's totals. Long lists scroll. A session's status can update while the pointer or keyboard focus is over the list, but its row stays in place until the user leaves it.
 
+For programs without an input-status hook, the daemon also recognizes structured keyboard-choice footers, such as select/move/cancel or Enter-to-confirm/Escape-to-cancel, at the screen's end. It checks after the screen settles, at most once a second, and clears the inferred state when input or a new explicit hook arrives. This is a conservative fallback, not recognition of every CLI prompt; a question printed as ordinary output does not count. It requires an updated daemon on the session's host. The sidebar and dock receive the same state.
+
 Click a session to restore the main window on that session, connecting to its host first when needed. The restore icon and **Open main window** bring back the current workspace. Escape collapses the list. Restoring enowX from its taskbar or tray also hides the dock. Showing the dock does not take focus from another app.
 
 Drag its heading or grip to move it. Its left and bottom edges are remembered on this device, and brought back onto a display if the monitor arrangement changes. Expanding preserves the bottom edge, opening upwards within the display's work area. Disable the preference to hide the dock and return to normal minimize behavior.

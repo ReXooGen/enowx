@@ -14,6 +14,7 @@ import (
 const psArgsHelper = "ENOWX_PS_ARGS_HELPER"
 
 func TestMain(m *testing.M) {
+	serveInputPromptTest()
 	if os.Getenv(psArgsHelper) == "1" {
 		_ = json.NewEncoder(os.Stdout).Encode(os.Args[1:])
 		os.Exit(0)

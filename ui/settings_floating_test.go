@@ -31,7 +31,7 @@ func TestFloatingSectionRendersAndSwitches(t *testing.T) {
 	if !tt.HasText("Shortcut") {
 		t.Fatalf("no shortcut row in %q", tt.Texts())
 	}
-	if !tt.HasText(modKey + "F") {
+	if !tt.HasText(floatingKey) {
 		t.Fatalf("no shortcut value in %q", tt.Texts())
 	}
 	// The switch is the button labeled "Floating control"; the intro is a

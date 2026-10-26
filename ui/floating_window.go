@@ -10,24 +10,11 @@ import (
 // floatingWindowOptions are the window the control lives in: a MyGo Panel,
 // frameless and transparent, sized to the pie's canvas.
 //
-// Panel is load-bearing on Windows and cannot be traded away:
-//
-//   - it is the only thing that adds WS_EX_TOOLWINDOW
-//     (internal/windows/window.go:238-245), which keeps the window out of
-//     Alt-Tab; SkipTaskbar only removes the taskbar button (tbDeleteTab,
-//     internal/windows/taskbar.go:53-55) and AlwaysOnTop only calls
-//     SetWindowPos(HWND_TOPMOST) (internal/windows/window.go:770-775);
-//   - it is the only thing that adds WS_EX_TOPMOST at creation;
-//   - it gives the window an owner (the hidden app window,
-//     internal/windows/window.go:134-139), so it never gets a taskbar button
-//     on another display.
-//
-// Its cost is the hairline: Panel calls w.roundFlyout()
-// (internal/windows/window.go:157-161), which sets DWMWA_WINDOW_CORNER_
-// PREFERENCE to DWMWCP_ROUND (internal/windows/flyout.go:38-41), and Windows
-// 11 outlines any window it rounds. setUpFloating takes that back with
-// dropFloatingFrame, which sets DWMWCP_DONOTROUND on the window's own HWND —
-// so the Panel, and everything it brings, stays.
+// Panel can't be traded away on Windows: it alone keeps the window out of
+// Alt-Tab (WS_EX_TOOLWINDOW), on top from its creation (WS_EX_TOPMOST), and
+// off every taskbar (an owner window); SkipTaskbar and AlwaysOnTop don't.
+// Its cost is the hairline Windows 11 draws round a Panel, whose corners
+// MyGo rounds: setUpFloating takes the rounding back (dropFloatingFrame).
 func floatingWindowOptions(a *App) mygo.WindowOptions {
 	return mygo.WindowOptions{
 		Title:       "Floating control",
@@ -125,7 +112,7 @@ func (a *App) applyFloatingShortcut() error {
 	}
 	if err := registerFloatingShortcut(floatingShortcut, a.summonFloating); err != nil {
 		a.state.FloatingControl = false
-		a.status = "Couldn't take " + modKey + "F for the floating control: " + err.Error()
+		a.status = "Couldn't take " + floatingKey + " for the floating control: " + err.Error()
 		return err
 	}
 	return nil

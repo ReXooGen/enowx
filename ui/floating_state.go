@@ -94,8 +94,10 @@ const (
 	// set: enough to read as a turn, short of a dizzy one.
 	floatingSpin = 24
 	// floatingShortcut is the global shortcut that summons the panel:
-	// Command+F on macOS, Control+F elsewhere.
-	floatingShortcut = "CmdOrCtrl+F"
+	// Command+Shift+Space on macOS, Control+Shift+Space elsewhere. Bound
+	// over every app, it must be one no app needs: Find (Command+F) is
+	// every app's.
+	floatingShortcut = "CmdOrCtrl+Shift+Space"
 	// floatingWedges is how many actions ring the pie: Active sessions,
 	// New session, Open folder, Panels, Command palette, Settings,
 	// Appearance.
@@ -195,3 +197,6 @@ var (
 	registerFloatingShortcut   = func(acc string, fn func()) error { return mygo.GlobalShortcut.Register(acc, fn) }
 	unregisterFloatingShortcut = func(acc string) { mygo.GlobalShortcut.Unregister(acc) }
 )
+
+// floatingKey is floatingShortcut as the app shows its shortcuts.
+var floatingKey = modKey + "⇧Space"

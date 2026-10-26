@@ -275,18 +275,18 @@ func (a *App) setVar(name, value string) {
 // own, and works the same for a session on this machine and one on a
 // server.
 func (a *App) floatingSection(c *ui.Context) {
-	sectionIntro(c, "Floating control", "A radial panel of the main actions, over any app: "+modKey+"F. While it is on, "+modKey+"F no longer reaches other apps.")
+	sectionIntro(c, "Floating control", "A radial panel of the main actions, over any app: "+floatingKey+". While it is on, "+floatingKey+" no longer reaches other apps.")
 	floating := a.state.FloatingControl
-	if switchRowKey(c, "Floating control switch", &floating, "Floating control", "The panel and its shortcut. Off, "+modKey+"F goes back to other apps.") {
+	if switchRowKey(c, "Floating control switch", &floating, "Floating control", "The panel and its shortcut. Off, "+floatingKey+" goes back to other apps.") {
 		a.setFloatingControl(floating) // binds the key, and shows the panel
 	}
 	ui.Row(c).FillWidth().Gap(10).Children(func() {
 		ui.Text(c, "Shortcut").FontSize(12.5).Grow(1)
-		ui.Text(c, modKey+"F").FontSize(12.5).TextColor(theme.Muted)
+		ui.Text(c, floatingKey).FontSize(12.5).TextColor(theme.Muted)
 	})
 	ui.Text(c, "Listed with the keyboard shortcuts in App.").FontSize(11.5).TextColor(theme.Muted)
 	fold := a.floatingFoldOnBlur()
-	if switchRowKey(c, "Fold when you go elsewhere switch", &fold, "Fold when you go elsewhere", "Clicking another app, or the desktop, folds the panel away. Off, it stays until you pick an action, press Escape, or press "+modKey+"F again.") {
+	if switchRowKey(c, "Fold when you go elsewhere switch", &fold, "Fold when you go elsewhere", "Clicking another app, or the desktop, folds the panel away. Off, it stays until you pick an action, press Escape, or press "+floatingKey+" again.") {
 		a.state.FloatingFoldOnBlur = &fold
 	}
 	atPointer := a.floatingAtPointer()
@@ -406,7 +406,7 @@ func shortcutList() [][2]string {
 		{modKey + "B", "Expand or collapse the sidebar"},
 		{modKey + "⇧D", "Show or hide the side panel"},
 		{modKey + "⇧S", "Show or hide the Sessions panel"},
-		{modKey + "F", "Floating control, over any app"},
+		{floatingKey, "Floating control, over any app"},
 		{modKey + "⇧P", "Browser tool"},
 		{modKey + "⇧L", "Sessions side by side"},
 		{modKey + "⇧]  " + modKey + "⇧[", "Next / previous session"},

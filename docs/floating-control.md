@@ -2,7 +2,7 @@
 
 A round panel over whatever is on screen: six actions around a button and a menu at its front for the sessions of this machine or a server, one shortcut away (`ui/floating.go`). It is a window of its own, a MyGo `Panel`, frameless and transparent, kept above other apps' windows. It is off by default; **Settings → Floating control** turns it on, and the same section lists its shortcut with the keyboard shortcuts.
 
-- **The shortcut:** `⌘F`, Command+F on macOS and Control+F on Windows and Linux. It works while enowX runs, whatever app is in front: the panel blooms at the pointer, and press it again and the panel folds away; the key only shows and hides it, the feature staying on.
+- **The shortcut:** `⌘⇧Space`, Command+Shift+Space on macOS and Control+Shift+Space on Windows and Linux (not Command+F, which every app needs for Find). It works while enowX runs, whatever app is in front: the panel blooms at the pointer, and press it again and the panel folds away; the key only shows and hides it, the feature staying on.
 - **The panel:** seven separated segments with larger icons and persistent action labels around a spacious center button. Chevrons mark the Sessions and Panels submenus. Hovering adds the theme's accent tint and an inner arc; an open submenu keeps its arc lit. The center shows the hovered action's name. The panel springs open and folds away.
 - **Dismissing:** Escape and the center's Back button return one level at a time: sessions → projects → servers (when offered) → actions. From the actions, Escape folds an open submenu first and then the panel; the center folds the panel directly.
 - **Submenus:** Sessions and Panels ease open in 120 ms and accept clicks while opening, so a quick second click is not lost waiting for the animation.

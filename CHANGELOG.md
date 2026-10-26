@@ -4,7 +4,7 @@ Each version's section is also what the app's update dialog shows.
 
 ## Unreleased
 
-- **Floating control:** an optional radial menu over other apps, summoned with Cmd/Ctrl+F. Choose This PC or a VPS, then a server when several are configured, a project and its session. Includes quick submenus, agent logos and status dots, paged server/project choices, step-by-step Back/Escape navigation, custom colors and tinted segments, compact sizing, reduced animation, and switches for positioning, dismissal and hiding the Sessions panel in Settings > Floating control.
+- **Floating control:** an optional radial menu over other apps, summoned with Cmd/Ctrl+Shift+Space. Choose This PC or a VPS, then a server when several are configured, a project and its session. Includes quick submenus, agent logos and status dots, paged server/project choices, step-by-step Back/Escape navigation, custom colors and tinted segments, compact sizing, reduced animation, and switches for positioning, dismissal and hiding the Sessions panel in Settings > Floating control.
 
 ## 0.2.2
 

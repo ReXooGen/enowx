@@ -32,6 +32,12 @@ import (
 //go:embed daemons
 var daemons embed.FS
 
+//go:embed prepare.sh
+var prepareScript string
+
+//go:embed linger.sh
+var lingerScript string
+
 // Options configures a connection.
 type Options struct {
 	// OnEvent receives the daemon's events (see client.New).

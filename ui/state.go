@@ -67,7 +67,14 @@ type appState struct {
 	// HideSessions folds the Sessions panel away, giving the session the
 	// room.
 	HideSessions bool `json:"hideSessions,omitempty"`
+
+	MiniDock             bool              `json:"miniDock,omitempty"`
+	MiniDockReduceMotion bool              `json:"miniDockReduceMotion,omitempty"`
+	MiniDockPosition     *miniDockPosition `json:"miniDockPosition,omitempty"`
 }
+
+// miniDockPosition stores the left and bottom edge in screen coordinates.
+type miniDockPosition struct{ X, Y int }
 
 // palette is the palette the user picked, with their accent.
 func (st appState) palette() theme.Palette {

@@ -67,10 +67,14 @@ func (a *App) setUpTray() {
 
 // showWindow brings the window back.
 func (a *App) showWindow() {
+	a.hideMiniDock()
 	if a.win == nil {
 		return
 	}
 	a.win.Show()
+	if a.win.IsMinimized() {
+		a.win.Restore()
+	}
 	a.win.Focus()
 }
 

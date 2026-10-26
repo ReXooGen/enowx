@@ -4,6 +4,7 @@ Each version's section is also what the app's update dialog shows.
 
 ## Unreleased
 
+- **Mini dock:** an optional, movable overview of sessions while enowX is minimized. Expand it to filter by host and open a session; sessions needing input or failing come first. Enable it in Settings → App, with an option to reduce motion.
 - Fixed: Windows builds normalize embedded server setup scripts to Unix line endings, so connecting to a Linux server no longer fails with a shell syntax error.
 
 ## 0.3.0

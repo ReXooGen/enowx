@@ -48,6 +48,8 @@ import (
 type App struct {
 	win   *mygo.Window
 	theme *ui.Theme
+
+	miniDock miniDockController
 	// onMain runs a function on the main thread: the window's Update.
 	onMain func(func())
 	// stopOnQuit says the app quits through "Quit and stop all agents".
@@ -348,6 +350,7 @@ func (a *App) Open() *mygo.Window {
 	}()
 	a.setUpTray()
 	a.setUpFloating()
+	a.setUpMiniDock()
 	return a.win
 }
 

@@ -340,6 +340,7 @@ func (a *App) floatingAtPointer() bool {
 // appSection is the app's own preferences.
 func (a *App) appSection(c *ui.Context) {
 	sectionIntro(c, "App", "enowX on this device.")
+	a.miniDockSettings(c)
 	widget.Field(c, "Editor", func() {
 		names := make([]string, len(editors))
 		for i, e := range editors {

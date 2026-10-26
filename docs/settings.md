@@ -1,5 +1,7 @@
 # Settings
 
+**Mini dock when minimized**, in **App**, optionally keeps a movable session overview over other apps. It is off by default; a second switch reduces its animation. Both preferences and the dock's position are saved on this device. See [mini-dock.md](mini-dock.md).
+
 The rail's **Settings** (or the command palette) has these sections, for the connected host where they are a host's.
 
 - **Agents' library**: the agents' skills, MCP servers, subagents, commands, instructions, settings (permissions and hooks) and Claude Code's plugins, global or the project's own; see [sync.md](sync.md#settings-the-agents-library).

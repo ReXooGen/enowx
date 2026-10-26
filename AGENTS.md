@@ -30,7 +30,16 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `core/git` | Thin wrappers over the `git` CLI | **No** |
 | `core/project` | Project folders a daemon knows, in the user's order and groups, stored in `~/.enowx-app/projects.json` | **No** |
 | `core/notes` | The user's notes on a host, a Markdown file each in `~/.enowx-app/notes` (see `docs/notes.md`) | **No** |
+| `core/features` | Which features agents get, per scope (everywhere, host, project, session), resolved for a session; the registry is `core/agent.Features` (see `docs/features.md`) | **No** |
+| `core/notify` | How the app notifies of agents: the settings kept in the synced settings, the sounds built in (synthesized), quiet hours | **No** |
+| `core/usersync` | Keeps the user's data (notes, canvases, settings, vault) the same on every host: three-way file sync, merges, conflicts, trash (see `docs/user-data-sync.md`) | **No** |
+| `core/noteblocks` | A note's structure: its layout blocks (tabs, toggles, columns, callouts, cards), sections, to-dos (see `docs/notes.md`) | **No** |
+| `core/iconlib` | The SVG icons notes and groups take: Lucide, Tabler and Phosphor kept in the binary (`scripts/iconlib.mjs` builds them), searched by name and keyword, icon values, the user's SVG cleaned | **No** |
+| `core/notesio` | Notes brought in from other apps (Notion, Obsidian, Evernote, Keep, HTML) and taken out (Markdown, folders, HTML, PDF, a backup) (see `docs/notes.md`) | **No** |
+| `core/canvas` | The user's canvases on a host (mockups, wireframes, diagrams, boards), their versions, comments, exports and the daemon's drawing of shapes, in `~/.enowx-app/canvas` (see `docs/canvas.md`) | **No** |
+| `core/projectctx` | A project's context for agents planning for it (stack, branch, last commit, folders, README) and its files, read-only | **No** |
 | `core/shells` | The shells a host has, for its terminals | **No** |
+| `core/vault` | The user's credential vault: sealed with a key that stays on the device, its platforms, what a session gets of a credential, hosts' imports, the SSH agent and the record of uses (see `docs/vault.md`) | **No** |
 | `core/accounts` | Agents' other accounts on a host, each a home of its own sharing the agent's settings (see `docs/accounts.md`) | **No** |
 | `core/agent` | Agent presets (Claude Code, Codex, …) and how they take a first prompt | **No** |
 | `core/agentapi` | Points agents at a model API of the user's, in each agent's own settings, backed up first (see `docs/agent-api.md`) | **No** |
@@ -45,6 +54,8 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `core/setup` | Scans what a host has, keeps what to bring as `enowx.toml`, and plans the steps that set a server up (see `docs/setup.md`) | **No** |
 | `core/transfer` | Packs a project and its sessions into an archive, and unpacks it on another host (see `docs/transfer.md`) | **No** |
 | `core/projectsync` | Compares two hosts' copies of a project with their last sync, plans and runs what goes each way (see `docs/transfer.md`) | **No** |
+| `core/projectlinks` | A project's ID in its folder, the links between its copies on several hosts, their syncs on their own and its auto push settings (see `docs/transfer.md`) | **No** |
+| `core/autopush` | Commits a project's work to a branch of its own and pushes that branch alone, the user's branch, index and files untouched, secrets refused | **No** |
 | `core/automation` | When automations (an agent's prompt on a schedule) run (see `docs/automations.md`) | **No** |
 | `core/userservice` | Runs the server daemon as a systemd user service, with lingering (see `docs/daemon.md`) | **No** |
 | `core/vps` | Creates and deletes servers at Hetzner, DigitalOcean and Vultr with the user's token (see `docs/vps.md`) | **No** |
@@ -66,11 +77,11 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `ui/widget` | Controls every view shares: buttons, dialogs, menus, chips, Markdown | Yes |
 | `ui/textfmt` | How values read in the UI: sizes, plurals, paths | **No** |
 | `ui/localpicker` | Picks files and folders of this device, for adding them to a session's folder | Yes |
-| `ui/chatview`, `ui/activityview`, `ui/appwindow`, `ui/libraryview`, `ui/browserview`, `ui/checkview`, `ui/diffview`, `ui/fileview`, `ui/portview`, `ui/trafficview`, `ui/androidview`, `ui/notesview`, `ui/usageview`, `ui/folderpicker`, `ui/syncview` | Self-contained views; they get what they need from `ui` through options and callbacks, never import it | Yes |
+| `ui/chatview`, `ui/activityview`, `ui/appwindow`, `ui/libraryview`, `ui/browserview`, `ui/checkview`, `ui/diffview`, `ui/fileview`, `ui/portview`, `ui/trafficview`, `ui/androidview`, `ui/notesview`, `ui/canvasview`, `ui/vaultview`, `ui/usageview`, `ui/folderpicker`, `ui/syncview` | Self-contained views; they get what they need from `ui` through options and callbacks, never import it | Yes |
 
 Keep MyGo out of packages marked **No**. If MyGo ever has to be replaced, only `ui/`, `cmd/enowx` and the terminal emulation in `core/session` should change.
 
-New daemon RPC methods go in the `daemon/rpc_*.go` file of their domain; `TestEveryMethodHasHandler` fails when a `proto.Method*` has no handler. The protocol only grows: `go test ./proto` fails when a method, event, constant or JSON field it had is gone or changed; record additions with `go test ./proto -run API -update` (see `docs/protocol.md`). New UI controls go in `ui/widget`; a new self-contained view gets its own `ui/<name>view` package.
+A new feature agents use registers in `core/agent.Features` (its guide part and MCP tools), so Settings → Features can turn it off. New daemon RPC methods go in the `daemon/rpc_*.go` file of their domain; `TestEveryMethodHasHandler` fails when a `proto.Method*` has no handler. The protocol only grows: `go test ./proto` fails when a method, event, constant or JSON field it had is gone or changed; record additions with `go test ./proto -run API -update` (see `docs/protocol.md`). New UI controls go in `ui/widget`; a new self-contained view gets its own `ui/<name>view` package.
 
 ## Principles
 

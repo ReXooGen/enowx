@@ -12,7 +12,9 @@ import (
 )
 
 // noteDrag is what dragging a page in the tree carries.
-type noteDrag struct{ id string }
+// noteDrag is what dragging a page (id) or a group (group) in the tree
+// carries: one type, as an element takes values of one.
+type noteDrag struct{ id, group string }
 
 // sidebar is the pages' tree: each under its parent, folding; a filter
 // shows the pages whose titles match, with those they are under.
@@ -22,40 +24,105 @@ func (v *View) sidebar(c *ui.Context, o Options) {
 		children[n.Parent] = append(children[n.Parent], n)
 	}
 	shown := v.matching(o)
-	widget.Bento(ui.Column(c.Key("notes-tree")).Width(248).Shrink(0).FillHeight(), theme.Panel).Children(func() {
-		ui.Column(c).FillWidth().Padding(8, 10, 10, 10).Gap(8).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-			ui.Row(c).FillWidth().Height(32).Gap(6).AlignItems(ui.Center).Children(func() {
-				ui.Column(c).Grow(1).MinWidth(0).Children(func() {
-					ui.Text(c, "Notes").FontSize(12.5).SingleLine()
-					ui.Text(c, "On "+o.Host).FontSize(10.5).TextColor(theme.Muted).SingleLine().Shrink(1)
-				})
-				b := widget.Button(c, widget.Primary, icon.Plus, "New", "").Height(28).PaddingX(10).Tooltip("New page")
-				if !o.Loaded {
-					b.Disabled(true).Opacity(0.45)
-				} else if b.Clicked() {
-					v.newPage(o, "")
-				}
+	tree := ui.Column(c.Key("notes-tree")).Width(248).Shrink(0).FillHeight().Background(theme.Panel).BorderWidth(0, 1, 0, 0).BorderColor(theme.Border)
+	if o.Drop != nil {
+		// Files from other apps dropped on the tree are imported.
+		if files := tree.DroppedFiles(); len(files) > 0 {
+			o.Drop(files)
+		}
+		if tree.FileDragOver() {
+			tree.Background(theme.AccentSoft).BorderColor(theme.AccentLine)
+		}
+	}
+	tree.Children(func() {
+		ui.Row(c).FillWidth().Height(44).Shrink(0).PaddingX(10).Gap(6).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
+			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+				ui.Text(c, "Notes").FontSize(12.5).SingleLine()
+				ui.Text(c, "On "+o.Host).FontSize(10.5).TextColor(theme.Muted).SingleLine().Shrink(1)
 			})
-			widget.SearchField(c, &v.filter, "Filter pages", icon.Search)
+			if o.SyncState != nil {
+				state, alarm := o.SyncState()
+				b := widget.IconButton(c, icon.Sync, state, false)
+				if alarm {
+					b.TextColor(theme.Warning)
+				}
+				if b.Clicked() && o.OpenSync != nil {
+					o.OpenSync()
+				}
+			}
+			if (o.Import != nil || o.Export != nil) && o.Loaded {
+				more := widget.IconButton(c, icon.More, "Import and export", false)
+				v.menu.OpenBelow(more, "notes-io", 28)
+				v.menu.Show(c, more, "notes-io", func(done func()) {
+					if o.Import != nil && widget.MenuItem(c, icon.ArrowDown, "Import…", false) {
+						o.Import()
+						done()
+					}
+					if o.Export != nil && len(o.Notes) > 0 && widget.MenuItem(c, icon.ArrowUp, "Export all…", false) {
+						o.Export(ExportPick{All: true, Title: "All notes"})
+						done()
+					}
+				})
+			}
+			if o.SaveGroup != nil && o.Loaded && widget.IconButton(c, icon.FolderPlus, "New group", false).Clicked() {
+				v.groupForm = &groupForm{open: true}
+			}
+			b := widget.Button(c, widget.Primary, icon.Plus, "New", "").Height(28).PaddingX(10).Tooltip("New page")
+			if !o.Loaded {
+				b.Disabled(true).Opacity(0.45)
+			} else if b.Clicked() {
+				v.newPage(o, "", v.groupFilter)
+			}
+		})
+		ui.Row(c).FillWidth().Gap(6).Padding(8, 10, 4, 10).Children(func() {
+			ui.Column(c).Grow(1).MinWidth(0).Children(func() { widget.SearchField(c, &v.filter, "Filter pages", icon.Search) })
+			v.groupFilterButton(c, o)
+			v.projectFilterButton(c, o)
 		})
 		ui.Scroll(c).Grow(1).FillWidth().Children(func() {
 			ui.Column(c).FillWidth().Padding(6).Gap(1).Children(func() {
 				if o.Loaded && len(o.Notes) == 0 {
 					ui.Text(c, "No pages yet").FontSize(12).TextColor(theme.Muted).Padding(6)
 				}
-				var walk func(parent string, depth int)
-				walk = func(parent string, depth int) {
+				if v.projectFilter == byProject {
+					v.byProjectTree(c, o, shown)
+					return
+				}
+				var walk func(parent string, depth int, group string)
+				walk = func(parent string, depth int, group string) {
 					for _, n := range children[parent] {
-						if shown != nil && !shown[n.ID] {
+						if shown != nil && !shown[n.ID] || depth == 0 && n.Group != group {
 							continue
 						}
 						v.treeRow(c.Key(n.ID), o, n, depth, len(children[n.ID]) > 0, children[parent])
 						if len(children[n.ID]) > 0 && (shown != nil || !v.folded[n.ID]) {
-							walk(n.ID, depth+1)
+							walk(n.ID, depth+1, group)
 						}
 					}
 				}
-				walk("", 0)
+				if len(o.Groups) == 0 {
+					walk("", 0, "")
+					return
+				}
+				for _, g := range o.Groups {
+					if v.groupFilter != "" && g.Name != v.groupFilter {
+						continue
+					}
+					n := v.inGroup(o, g.Name, shown)
+					if shown != nil && n == 0 {
+						continue
+					}
+					v.groupHeader(c.Key("group:"+g.Name), o, g, n)
+					if !g.Folded || shown != nil {
+						ui.Column(c).FillWidth().Gap(1).Padding(0, 0, 0, 8).Children(func() { walk("", 0, g.Name) })
+					}
+				}
+				if v.groupFilter == "" {
+					v.ungroupedHeader(c, o, v.inGroup(o, "", shown))
+					if !v.ungroupedFolded || shown != nil {
+						walk("", 0, "")
+					}
+				}
 			})
 		})
 	})
@@ -64,7 +131,8 @@ func (v *View) sidebar(c *ui.Context, o Options) {
 // matching is the pages a filter shows, nil without one.
 func (v *View) matching(o Options) map[string]bool {
 	q := strings.ToLower(strings.TrimSpace(v.filter))
-	if q == "" {
+	filtered := v.projectFilter != "" && v.projectFilter != byProject
+	if q == "" && !filtered {
 		return nil
 	}
 	byID := map[string]proto.NoteInfo{}
@@ -73,7 +141,7 @@ func (v *View) matching(o Options) map[string]bool {
 	}
 	shown := map[string]bool{}
 	for _, n := range o.Notes {
-		if strings.Contains(strings.ToLower(n.Title), q) {
+		if strings.Contains(strings.ToLower(n.Title), q) && v.inProjectFilter(n) {
 			for x, ok := n, true; ok && !shown[x.ID]; x, ok = byID[x.Parent] {
 				shown[x.ID] = true
 			}
@@ -87,7 +155,7 @@ func (v *View) matching(o Options) map[string]bool {
 func (v *View) treeRow(c *ui.Context, o Options, n proto.NoteInfo, depth int, hasChildren bool, siblings []proto.NoteInfo) {
 	row := ui.ButtonBase(c).FillWidth().Height(30).Padding(0, 4, 0, 4+float32(depth)*14).Gap(4).Radius(6).
 		Cursor(ui.CursorPointer).Label(titleOf(n)).AlignItems(ui.Center)
-	row.Drag(noteDrag{n.ID})
+	row.Drag(noteDrag{id: n.ID})
 	switch {
 	case n.ID == v.selected:
 		row.Background(theme.Selected)
@@ -112,20 +180,19 @@ func (v *View) treeRow(c *ui.Context, o Options, n proto.NoteInfo, depth int, ha
 			}
 			v.folded[n.ID] = !v.folded[n.ID]
 		}
-		if n.Icon != "" {
-			ui.Text(c, n.Icon).FontSize(13).Shrink(0)
-		} else {
-			ui.Icon(c, icon.File).FontSize(13).TextColor(theme.Muted).Shrink(0)
-		}
+		widget.NoteIcon(c, n.Icon, 14, theme.TextSoft, nil)
 		name := ui.Text(c, titleOf(n)).FontSize(12.5).TextColor(theme.Text).SingleLine().Shrink(1).Grow(1)
 		if n.ID == v.selected {
 			name.TextColor(theme.TextStrong)
 		} else if strings.TrimSpace(n.Title) == "" {
 			name.TextColor(theme.Muted)
 		}
+		if n.IconReview && !row.Hovered() {
+			ui.Box(c).Size(6, 6).Radius(3).Background(theme.Warning).Shrink(0).Tooltip("Its icon stands in for an emoji: pick one")
+		}
 		if row.Hovered() {
 			if widget.IconButton(c, icon.Plus, "Add a page inside", false).Clicked() {
-				v.newPage(o, n.ID)
+				v.newPage(o, n.ID, "")
 			}
 		}
 	})
@@ -147,7 +214,7 @@ func (v *View) dropOn(row ui.Element, o Options, n proto.NoteInfo, siblings []pr
 	case y > 22:
 		zone = 2
 	}
-	if d, ok := ui.Drop[noteDrag](row); ok && d.id != n.ID {
+	if d, ok := ui.Drop[noteDrag](row); ok && d.id != "" && d.id != n.ID {
 		switch zone {
 		case 0:
 			o.Move(d.id, n.Parent, n.ID, v.failed)
@@ -158,7 +225,7 @@ func (v *View) dropOn(row ui.Element, o Options, n proto.NoteInfo, siblings []pr
 			o.Move(d.id, n.Parent, after(siblings, n.ID, d.id), v.failed)
 		}
 	}
-	if d, ok := ui.DragOver[noteDrag](row); ok && d.id != n.ID {
+	if d, ok := ui.DragOver[noteDrag](row); ok && d.id != "" && d.id != n.ID {
 		switch zone {
 		case 0:
 			row.BorderWidth(2, 0, 0, 0).BorderColor(theme.Accent)

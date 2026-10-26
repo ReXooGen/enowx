@@ -13,19 +13,34 @@ var projectHandlers = map[string]handler{
 		if err != nil {
 			return nil, err
 		}
-		c.srv.broadcast(proto.EventProjectsChanged, c.srv.projects.List())
+		c.srv.projectsChanged()
 		return info, nil
 	}),
 	proto.MethodProjectRemove: with(func(c *conn, p proto.ProjectRef) (any, error) {
 		if err := c.srv.projects.Remove(p.Path); err != nil {
 			return nil, err
 		}
-		c.srv.broadcast(proto.EventProjectsChanged, c.srv.projects.List())
+		c.srv.projectsChanged()
 		return ok, nil
 	}),
 	proto.MethodProjectInspect: with(func(c *conn, p proto.ProjectRef) (any, error) {
 		return project.Inspect(p.Path), nil
 	}),
+	proto.MethodProjectClone: with(func(c *conn, p proto.ProjectCloneParams) (any, error) {
+		st, err := c.srv.startClone(p)
+		if err == nil {
+			c.srv.keepClone(p)
+		}
+		return st, err
+	}),
+	proto.MethodProjectClonePrefs: bare(func(c *conn) (any, error) { return c.srv.clonePrefs() }),
+	proto.MethodProjectCloneStatus: with(func(c *conn, p proto.CloneRef) (any, error) {
+		return c.srv.cloneStatus(p.ID)
+	}),
+	proto.MethodProjectCloneCancel: with(func(c *conn, p proto.CloneRef) (any, error) {
+		return ok, c.srv.cancelClone(p.ID)
+	}),
+	proto.MethodProjectClones: bare(func(c *conn) (any, error) { return c.srv.cloneList(), nil }),
 	proto.MethodProjectArrange: with(func(c *conn, p proto.ProjectArrangeParams) (any, error) {
 		return c.srv.projectsArranged(c.srv.projects.Arrange(p.Path, p.Group, p.Before))
 	}),
@@ -43,7 +58,7 @@ func (s *Server) projectsArranged(err error) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	s.broadcast(proto.EventProjectsChanged, s.projects.List())
+	s.projectsChanged()
 	return ok, nil
 }
 

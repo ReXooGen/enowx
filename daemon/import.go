@@ -97,7 +97,7 @@ func (s *Server) unpack(p proto.TransferUnpackParams) (proto.TransferResult, err
 	if err != nil {
 		return proto.TransferResult{}, err
 	}
-	s.broadcast(proto.EventProjectsChanged, s.projects.List())
+	s.projectsChanged()
 
 	res := proto.TransferResult{Project: proj}
 	ids := map[string]string{} // the source's session ids → the new ones
@@ -193,13 +193,13 @@ func (s *Server) importSession(in *importing, ms transfer.Session, ids map[strin
 		if preset.RefusesRootSkip && os.Geteuid() == 0 {
 			meta.SkipPermissions = false
 		}
-		command = thenShell(preset.Argv(agentLaunch(preset, meta.SkipPermissions, "", false)))
+		command = thenShell(preset.Argv(agentLaunch(preset, meta.SkipPermissions, "", false, chatFor{guide: s.guideFor(meta)})))
 		if convo != "" {
-			l := agentLaunch(preset, meta.SkipPermissions, "", true)
+			l := agentLaunch(preset, meta.SkipPermissions, "", true, chatFor{guide: s.guideFor(meta)})
 			l.Resume = convo
 			command = thenShell(preset.Argv(l))
 		}
-		meta.Restart, meta.Relaunch = thenShell(preset.Argv(agentLaunch(preset, meta.SkipPermissions, "", true))), len(preset.Continue) > 0
+		meta.Restart, meta.Relaunch = thenShell(preset.Argv(agentLaunch(preset, meta.SkipPermissions, "", true, chatFor{guide: s.guideFor(meta)}))), len(preset.Continue) > 0
 	case ms.Agent == agent.Shell:
 		meta.Relaunch = true
 	default:

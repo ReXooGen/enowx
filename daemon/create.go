@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -28,11 +29,40 @@ const (
 
 // createSession resolves where and what to run for p, then starts it.
 func (s *Server) createSession(p proto.SessionCreateParams) (*session.Session, error) {
-	meta := session.Meta{Name: strings.TrimSpace(p.Name), Prompt: p.Prompt, Project: p.Project, Agent: p.Agent, Group: p.Group, Account: p.Account}
+	meta := session.Meta{Name: strings.TrimSpace(p.Name), Prompt: p.Prompt, Project: p.Project, Agent: p.Agent, Group: p.Group, Account: p.Account, NotesFor: p.NotesFor, CanvasFor: p.CanvasFor, Features: p.Features,
+		NoAutoHibernate: s.hibernatePrefs().NeverByDefault}
 	setup := "" // the project's worktree setup, to run in a tab once started
 	dir := p.Dir
+	if p.NotesFor != "" {
+		// On notes only: a folder of its own, empty, no project or branch.
+		if _, err := s.notes.Get(p.NotesFor); err != nil {
+			return nil, err
+		}
+		dir = filepath.Join(filepath.Dir(s.WorktreeRoot), "notes-chat", p.NotesFor)
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return nil, err
+		}
+		p.Project, p.Parent, p.BranchMode, meta.Project = "", "", proto.BranchNone, ""
+		if meta.Name == "" {
+			meta.Name = "Notes"
+		}
+	}
+	if p.CanvasFor != "" {
+		// On canvases: a folder of its own; the canvas's projects it reads.
+		if _, err := s.canvases.Get(p.CanvasFor); err != nil {
+			return nil, err
+		}
+		dir = filepath.Join(filepath.Dir(s.WorktreeRoot), "canvas-chat", p.CanvasFor)
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return nil, err
+		}
+		p.Project, p.Parent, p.BranchMode, meta.Project = "", "", proto.BranchNone, ""
+		if meta.Name == "" {
+			meta.Name = "Canvas"
+		}
+	}
 	// Settle what to run before creating a worktree it would leave behind.
-	launch, err := launchFor(p)
+	launch, err := launchFor(p, s.chatOf(p.NotesFor, p.CanvasFor, s.guideFor(meta)))
 	if err != nil {
 		return nil, err
 	}
@@ -116,12 +146,18 @@ func (s *Server) createSession(p proto.SessionCreateParams) (*session.Session, e
 		spec.Env = append(spec.Env, disp.Env()...)
 		spec.Meta.Display, spec.Meta.DisplayScale = disp.Port, disp.Scale
 	}
+	if p.NotesFor == "" && p.CanvasFor == "" && !p.SignIn {
+		// The vault's credentials it asked for, and its helpers.
+		env, names := s.vaultSessionEnv(spec.ID, meta.Project, meta.Parent, p.Creds)
+		spec.Env, spec.Meta.Creds = append(spec.Env, env...), names
+	}
 	if _, isAgent := agent.Find(p.Agent); isAgent && !p.SignIn && s.mustQueue() {
 		return s.enqueue(spec, launch.command, launch.typed)
 	}
 	sess, err := s.sessions.Create(spec)
 	if err != nil {
 		s.displays.stop(spec.ID)
+		s.vaultRelease(spec.ID)
 		return nil, err
 	}
 	s.began(sess, launch.command, launch.typed)
@@ -190,7 +226,7 @@ type launch struct {
 	skip     bool     // the agent skips permission prompts
 }
 
-func launchFor(p proto.SessionCreateParams) (launch, error) {
+func launchFor(p proto.SessionCreateParams, chat chatFor) (launch, error) {
 	prompt := strings.TrimSpace(p.Prompt)
 	if p.SignIn {
 		preset, ok := agent.Find(p.Agent)
@@ -224,17 +260,29 @@ func launchFor(p proto.SessionCreateParams) (launch, error) {
 	if skip && preset.RefusesRootSkip && os.Geteuid() == 0 {
 		return launch{}, fmt.Errorf("%s refuses to skip permission prompts as root; reconnect and let enowX run as a regular user (Manage hosts → Ask user again), or turn off Skip permission prompts", preset.Name)
 	}
-	if note := agent.GuideNote(preset.ID); note != "" && prompt != "" {
-		prompt += "\n\n" + note
+	switch {
+	case chat.notes != "":
+		if note := agent.NotesNote(preset.ID, chat.notes); note != "" && prompt != "" {
+			prompt = note + "\n\n" + prompt
+		}
+	case chat.canvas != "":
+		if note := agent.CanvasNote(preset.ID, chat.canvas); note != "" && prompt != "" {
+			prompt = note + "\n\n" + prompt
+		}
+	default:
+		if note := agent.GuideNote(preset.ID); note != "" && prompt != "" {
+			prompt += "\n\n" + note
+		}
 	}
-	first := agentLaunch(preset, skip, prompt, false)
+	first := agentLaunch(preset, skip, prompt, false, chat)
+	first.Hooks = append(first.Hooks, agent.LaunchArgs(preset.ID, p.Model, p.Effort)...)
 	if p.Resume != "" {
 		first.Resume = p.Resume
 	}
 	l := launch{
 		command:  thenShell(preset.Argv(first)),
-		env:      append(preset.Environ(skip), apiEnv(preset.ID)...),
-		restart:  thenShell(preset.Argv(agentLaunch(preset, skip, "", true))),
+		env:      append(append(append(preset.Environ(skip), apiEnv(preset.ID)...), notesEnv(chat.notes != "")...), canvasEnv(chat.canvas != "")...),
+		restart:  thenShell(preset.Argv(agentLaunch(preset, skip, "", true, chat))),
 		relaunch: len(preset.Continue) > 0,
 		skip:     skip,
 	}
@@ -246,18 +294,54 @@ func launchFor(p proto.SessionCreateParams) (launch, error) {
 }
 
 // agentLaunch is how this daemon starts preset: with its hooks and guide,
-// so a session continued after an upgrade gets the current ones.
-func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool) agent.Launch {
+// so a session continued after an upgrade gets the current ones; notes
+// starts it as note notes' agent in the Notes page (agent.NotesArgs).
+// chatFor is what an agent is for: a session's (its guide, "" for
+// the Guide), a note's (the Notes page) or a canvas's (the Canvas page),
+// with the folders a canvas's agent reads.
+type chatFor struct {
+	notes, canvas, guide string
+	dirs                 []string
+}
+
+// chatOf is the agent of note notes, or of canvas cv, with the folders it
+// reads (the canvas's own and its projects'), or a session's with guide.
+func (s *Server) chatOf(notes, cv, guide string) chatFor {
+	ch := chatFor{notes: notes, canvas: cv, guide: guide}
+	if cv != "" {
+		if dir, err := s.canvases.Dir(cv); err == nil {
+			ch.dirs = append(ch.dirs, dir)
+		}
+		if c, err := s.canvases.Get(cv); err == nil {
+			ch.dirs = append(ch.dirs, c.Projects...)
+		}
+	}
+	return ch
+}
+
+func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool, chat chatFor) agent.Launch {
+	guide := chat.guide
+	if guide == "" {
+		guide = agent.Guide
+	}
 	// Skipping stays a mode to switch to from the chat, except as root,
 	// where the agent would refuse to start with it.
 	allow := !(preset.RefusesRootSkip && os.Geteuid() == 0)
 	if home, err := os.UserHomeDir(); err == nil {
 		// Agents whose command line takes no guide read it from their home.
-		if err := agent.PlaceGuide(preset.ID, home); err != nil {
+		if err := agent.PlaceGuideText(preset.ID, home, guide); err != nil {
 			slog.Warn("could not give the agent its guide", "agent", preset.ID, "err", err)
 		}
 	}
-	hooks := append(agent.HookArgs(preset.ID), agent.GuideArgs(preset.ID)...)
+	hooks := append(agent.HookArgs(preset.ID), agent.GuideArgsText(preset.ID, guide)...)
+	switch {
+	case chat.notes != "":
+		exe, _ := os.Executable()
+		hooks = append(agent.HookArgs(preset.ID), agent.NotesArgs(preset.ID, exe, chat.notes)...)
+	case chat.canvas != "":
+		exe, _ := os.Executable()
+		hooks = append(agent.HookArgs(preset.ID), agent.CanvasArgs(preset.ID, exe, chat.canvas, chat.dirs)...)
+	}
 	if home, err := os.UserHomeDir(); err == nil {
 		hooks = append(hooks, agentapi.LaunchArgs(home, preset.ID)...) // its model API's config
 	}
@@ -281,4 +365,22 @@ func apiEnv(id string) []string {
 		return nil
 	}
 	return agentapi.LaunchEnv(home, id)
+}
+
+// canvasEnv is what a Canvas page agent's session adds to its
+// environment: its MCP tools are the canvas's (proto.EnvCanvasChat).
+func canvasEnv(canvas bool) []string {
+	if !canvas {
+		return nil
+	}
+	return []string{proto.EnvCanvasChat + "=1"}
+}
+
+// notesEnv is what a Notes page agent's session adds to its environment:
+// its notes are proposed (proto.EnvNotesPropose).
+func notesEnv(notes bool) []string {
+	if !notes {
+		return nil
+	}
+	return []string{proto.EnvNotesPropose + "=1"}
 }

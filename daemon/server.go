@@ -10,6 +10,8 @@ import (
 	"github.com/enowx/enowx/core/commands"
 	"github.com/enowx/enowx/core/credits"
 	"github.com/enowx/enowx/core/display"
+	"github.com/enowx/enowx/core/intercept"
+	"github.com/enowx/enowx/core/vault"
 	"log/slog"
 	"net"
 	"os"
@@ -17,10 +19,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/enowx/enowx/core/canvas"
+	"github.com/enowx/enowx/core/features"
 	"github.com/enowx/enowx/core/notes"
+	"github.com/enowx/enowx/core/notify"
 	"github.com/enowx/enowx/core/project"
+	"github.com/enowx/enowx/core/projectlinks"
 	"github.com/enowx/enowx/core/projectsync"
 	"github.com/enowx/enowx/core/session"
+	"github.com/enowx/enowx/core/usersync"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/version"
 )
@@ -44,15 +51,30 @@ type Server struct {
 	// Log receives diagnostics; nil discards them.
 	Log *slog.Logger
 
-	sessions  *session.Manager
-	projects  *project.Store
-	notes     *notes.Store
-	accounts  *accounts.Store // agents' other accounts
-	browsers  browsers        // apps doing enowx browser's actions
-	persist   *persistence
-	started   time.Time
-	done      chan struct{}
-	closeOnce sync.Once
+	sessions     *session.Manager
+	projects     *project.Store
+	notes        *notes.Store
+	userdata     *usersync.Folder // the user's data synced between hosts
+	features     *features.Store  // which features the user has on
+	featAsks     featureAsks      // agents asking to turn one on
+	notify       *notify.Store    // how the apps notify, in the synced settings
+	syncPeers    syncPeers
+	catalogMu    sync.Mutex     // one catalog written at a time
+	catalogs     sync.WaitGroup // catalogs being written
+	clonePrefsMu sync.Mutex     // one settings/clone.json written at a time
+	dataDir      string
+	clones       clones
+	noteIO       noteImports
+	accounts     *accounts.Store // agents' other accounts
+	browsers     browsers        // apps doing enowx browser's actions
+	persist      *persistence
+	started      time.Time
+	done         chan struct{}
+	closeOnce    sync.Once
+	canvases     *canvas.Store
+	canvasState  canvasState  // paused canvases, renders waiting
+	shares       canvasShares // canvases shared by a link (canvas_share.go)
+	vault        vaultState   // apps lending credentials, and what they lent (vault.go)
 
 	transcripts transcripts
 	statsState  stats
@@ -68,6 +90,12 @@ type Server struct {
 	syncHash     projectsync.Hasher // files' hashes, for syncs
 	traf         traffic            // the HTTP interceptor (traffic.go)
 	android      androidState       // Android devices (android.go)
+	hibernates   hibernations       // sessions to hibernate once done (hibernate.go)
+	daemonID     string             // DaemonInfo.ID
+	links        *projectlinks.Store
+	pushes       autopushes     // auto pushes running (autopush.go)
+	projWatches  projectWatches // folders watched (projectwatch.go)
+	appReqs      appRequests    // what apps were asked (apprequest.go)
 
 	mu    sync.Mutex
 	conns map[*conn]struct{}
@@ -80,11 +108,16 @@ func NewServer(dir string) (*Server, error) { return newServer(dir, "") }
 // newServer is NewServer with the program agents' hooks run (HookBin),
 // set before saved sessions come back so they get it too.
 func newServer(dir, hookBin string) (*Server, error) {
+	forgetParentAgent()
 	projects, err := project.Open(filepath.Join(dir, "projects.json"))
 	if err != nil {
 		return nil, err
 	}
 	noteStore := notes.Open(filepath.Join(dir, "notes"))
+	// Icons of before SVG ones (emoji) move to theirs, once.
+	if n, err := noteStore.MigrateIcons(); err != nil || n > 0 {
+		slog.Default().Info("notes: icons moved to SVG", "notes", n, "err", err)
+	}
 	persist, err := openPersistence(dir)
 	if err != nil {
 		return nil, err
@@ -107,15 +140,27 @@ func newServer(dir, hookBin string) (*Server, error) {
 		sessions:     session.NewManager(),
 		projects:     projects,
 		notes:        noteStore,
+		userdata:     usersync.OpenFolder(dir),
+		features:     features.Open(dir),
+		notify:       notify.Open(dir),
+		dataDir:      dir,
+		canvases:     canvas.Open(filepath.Join(dir, "canvas")),
 		persist:      persist,
 		checkStore:   checkStore,
 		commandStore: commandStore,
 		accounts:     accountStore,
+		daemonID:     loadDaemonID(dir),
+		links:        projectlinks.Open(dir),
 		started:      time.Now(),
 		conns:        map[*conn]struct{}{},
 		done:         make(chan struct{}),
 	}
 	s.vars.load(s.sessionEnvFile())
+	s.userdata.Name, _ = os.Hostname()
+	s.userdata.EmptyTrash(time.Now())
+	s.publishSoon(s.projects.List())
+	s.vault.audit = vault.OpenAudit(filepath.Join(dir, "vault", "audit.jsonl"))
+	intercept.KnownSecrets(s.lentSecrets)
 	s.loadShell()
 	s.sessions.OnUpdate = func(info proto.SessionInfo) {
 		if info.Exited {
@@ -128,6 +173,9 @@ func newServer(dir, hookBin string) (*Server, error) {
 			s.exitsLogged.Delete(info.ID)
 		}
 		s.sched.poke()
+		if info.NotesFor != "" && (info.State == proto.StateDone || info.Exited) {
+			go s.keepNoteChat(info.NotesFor, info.ID) // a turn ended: kept with the note
+		}
 		if sess, err := s.sessions.Get(info.ID); err == nil {
 			s.persist.update(sess, nil)
 		}
@@ -150,6 +198,7 @@ func newServer(dir, hookBin string) (*Server, error) {
 	go s.watchPorts(s.done)
 	go s.runScheduler(s.done)
 	go s.runAutomations(s.done)
+	go s.runAutopushes(s.done)
 	return s, nil
 }
 
@@ -178,6 +227,9 @@ func (s *Server) ServeConn(nc net.Conn) {
 		delete(s.conns, c)
 		s.mu.Unlock()
 		s.browsers.drop(c)
+		s.projWatches.drop(c)
+		s.appReqs.drop(c)
+		s.vault.drop(c)
 	}()
 	if err := c.serve(); err != nil {
 		s.logger().Debug("connection closed", "err", err)
@@ -188,6 +240,12 @@ func (s *Server) ServeConn(nc net.Conn) {
 func (s *Server) Close() {
 	s.closeOnce.Do(func() {
 		close(s.done)
+		s.clones.stopAll() // half-made clones go with them
+		s.noteIO.stopAll()
+		s.shares.mu.Lock()
+		s.stopShares()
+		s.shares.mu.Unlock()
+		s.projWatches.stopAll()
 		s.persist.stopping()
 		var tags []tag
 		for _, sess := range s.sessions.List() {
@@ -198,10 +256,12 @@ func (s *Server) Close() {
 		s.runner.StopAll()
 		s.stopTraffic()
 		s.android.logs.Close()
+		s.vaultReleaseAll()
 		tags = append(tags, s.displays.stopAll()...)
 		// Sessions come back with the next daemon, and start what they
 		// run again: nothing of theirs should run twice.
 		reapAll(tags)
+		s.catalogs.Wait()
 	})
 }
 
@@ -223,6 +283,7 @@ func (s *Server) deleteSession(id string) error {
 	s.runner.Forget(id)
 	s.unqueue(id)
 	s.displays.stop(id)
+	s.vaultRelease(id)
 	_ = os.RemoveAll(s.uploadDir(id))
 	return nil
 }
@@ -239,6 +300,7 @@ func (s *Server) info() proto.DaemonInfo {
 		Hostname: host,
 		Home:     home,
 		Hash:     s.Hash,
+		ID:       s.daemonID,
 	}
 	info.Display, info.DisplayNote = display.Available()
 	if !info.Display {

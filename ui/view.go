@@ -23,8 +23,10 @@ var modKey = func() string {
 
 func (a *App) view(c *ui.Context) {
 	c.SetTheme(a.theme)
+	a.winW, _ = c.Size()
 	a.shortcuts(c)
 	a.watchUsageShown()
+	a.renderingView(c)
 	ui.Column(c).Fill().Background(theme.Ground).TextColor(theme.Text).Children(func() {
 		a.titleBar(c)
 		ui.Row(c).Grow(1).FillWidth().MinHeight(0).AlignItems(ui.Stretch).Padding(0, theme.BentoGap).Gap(theme.BentoGap).Children(func() {
@@ -36,16 +38,21 @@ func (a *App) view(c *ui.Context) {
 			}
 			a.workspace(c)
 			a.sidePanelView(c)
+			a.notesAgentPanel(c)
+			a.canvasAgentPanel(c)
 		})
 		a.statusBar(c)
 	})
 	a.cornerCards(c)
+	a.vaultAskDialog(c)
 	a.commandPalette(c)
 	a.updateDialog(c)
 	a.budgetDialog(c)
 	a.commandDialog(c)
 	a.copyDialog(c)
+	a.cloneToDialog(c)
 	a.projectSyncDialog(c)
+	a.linksDialog(c)
 	a.pipelineDialog(c)
 	a.createServerDialog(c)
 	a.quickOpenDialog(c)
@@ -53,6 +60,8 @@ func (a *App) view(c *ui.Context) {
 	a.compareDialogView(c)
 	a.localPick.View(c)
 	a.deleteServerDialog(c)
+	a.clearHostDialog(c)
+	a.featureAskDialog(c)
 	a.agentLimitDialog(c)
 	a.newSessionDialog(c)
 	a.addProjectDialog(c)
@@ -63,12 +72,21 @@ func (a *App) view(c *ui.Context) {
 	a.passphraseDialog(c)
 	a.signInDialog(c)
 	a.deleteDialog(c)
+	a.hibernateDialog(c)
 	a.removeProjectDialog(c)
 	a.groupDialog(c)
+	a.cloneDialog(c)
+	a.noteImportDialog(c)
+	a.noteExportDialog(c)
 	a.saveState()
 }
 
 func (a *App) shortcuts(c *ui.Context) {
+	if c.Shortcut(ui.Cmd|ui.Shift, ui.KeyH) && a.page == "" {
+		if s, ok := a.sessionByID(a.selected); ok && canHibernate(s) {
+			a.hibernate(a.hibernateTargets(s))
+		}
+	}
 	if c.Shortcut(ui.Cmd, ui.KeyN) {
 		if p, ok := a.currentProject(); ok {
 			a.openNewSession(p)
@@ -81,9 +99,12 @@ func (a *App) shortcuts(c *ui.Context) {
 		a.openFolder()
 	}
 	if c.Shortcut(ui.Cmd, ui.KeyK) {
-		if a.palette.open {
+		switch {
+		case a.page == pageNotes && !a.palette.open && a.notes.OpenJump():
+			// On a page of notes, it jumps to a section of it.
+		case a.palette.open:
 			a.palette.open = false
-		} else {
+		default:
 			a.openPalette()
 		}
 	}

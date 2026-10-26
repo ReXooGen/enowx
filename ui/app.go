@@ -25,6 +25,7 @@ import (
 	"github.com/enowx/enowx/ui/androidview"
 	"github.com/enowx/enowx/ui/appwindow"
 	"github.com/enowx/enowx/ui/browserview"
+	"github.com/enowx/enowx/ui/canvasview"
 	"github.com/enowx/enowx/ui/chatview"
 	"github.com/enowx/enowx/ui/checkview"
 	"github.com/enowx/enowx/ui/creditview"
@@ -72,12 +73,30 @@ type App struct {
 	runCommands     map[string]*commandList      // project commands, by session ID, for its Run menu
 	commandForm     *commandForm
 	shortcutsOpen   bool           // Settings › App lists the shortcuts
+	settingsTabsW   float32        // the sections' tabs' width, last drawn
+	settingsMenuW   float32        // the sections' menu button's, last drawn
+	settingsMenu    bool           // the sections show as a menu, the tabs not fitting
+	winW            float32        // the window's width, last frame
 	settingsSection string         // the Settings section shown
 	hostSet         *hostSettings  // Settings' sections' state for the connected host
 	shells          *hostShells    // the connected host's shells
 	notes           notesview.View // the Notes page
 	noteList        *hostNotes     // the connected host's notes
-	agentAPIs       *agentAPIState // Settings' Model APIs
+	clone           *cloneForm     // the Clone from Git dialog
+	noteImport      *noteImportForm
+	noteExport      *noteExportForm
+	catalogs        noteCatalogs    // every host's projects, for notes attached to them
+	attaching       *noteAttachForm // the dialog attaching a note to projects
+	// saveAs asks where to save a file named name, "" for nowhere; nil
+	// asks with the system's dialog (tests answer themselves).
+	saveAs     func(name string) (string, error)
+	canvases   canvasview.View // the Canvas page
+	canvasList *hostCanvases   // the connected host's canvases
+	rendering  *canvasRender   // a frame being rendered for the daemon
+	canvasChat *hostCanvasChat // the open canvas's conversation with its agent
+	// notesModel and notesEffort are what a note's agent starts on, by agent.
+	notesModel, notesEffort map[string]string
+	agentAPIs               *agentAPIState // Settings' Model APIs
 	// tray is the app's icon in the menu bar or notification area, nil
 	// where there is none; trayPanel its open panel. quitting: the app is
 	// quitting, so closing the window doesn't keep it in the tray.
@@ -91,13 +110,23 @@ type App struct {
 	setupPolled        time.Time                 // when the setup's status was last read
 	drift              map[string]int            // steps a host lacks to be what this device is, by host ID
 	watches            map[string]*hostWatch     // the hosts not shown, by ID
+	dsync              dataSync                  // the user's data synced between hosts
+	feats              *hostFeatures             // the connected host's feature switches
+	noteChatsRead      noteChats                 // notes' conversations with their agents
+	featAsks           []featureAsk              // agents asking to turn a feature on
+	ntf                notifyState               // the sounds played (notifysound.go)
 	chooseRunAs        string                    // the host whose next connection asks which user to run as
 	connectLink        string                    // a link the server gave while signing in: a Tailscale SSH check
 	openSession        string                    // a session to show once the host connected lists it
 	openProject        string                    // a project to show once the host connected shows it
 	copying            *copyForm                 // the Copy to another host dialog
+	cloningTo          *cloneToForm              // the Clone on another host dialog
 	projectSyncing     *projectSyncForm          // the Sync with another host dialog
 	syncPairs          *projectsync.Store        // projects synced between hosts, and their base
+	links              autoSync                  // links between hosts' copies of projects (autosync.go)
+	notionRunning      map[string]bool           // Notion imports made again now, by notionSync ID
+	linksForm          *linksForm                // the Sync & push dialog of a project
+	vlt                *vaultApp                 // the credential vault (vault.go)
 	piping             *pipelineForm             // the New pipeline dialog
 	creating           *vpsForm                  // the Create a server dialog
 	quick              quickOpen                 // the Go to file dialog
@@ -109,6 +138,9 @@ type App struct {
 	localPick          localpicker.Picker        // picks this device's files to add to a session
 	autos              automationsState          // Settings → Automations
 	deletingServer     *hosts.Host               // the server whose deletion is asked about
+	clearingHost       *hosts.Host               // the host whose synced data's clearing is asked about
+	picked             map[string]bool           // sessions picked with ⌘ or ⇧ clicks, for Hibernate
+	hibernating        *hibernateForm            // hibernating sessions that would lose work, asked about
 	pipelines          []proto.Pipeline          // the connected host's
 	tabs               map[string]string         // the tab each session shows in front, by session ID
 	installs           map[string]func()         // install sessions, by session ID: what to check once each ends
@@ -307,6 +339,13 @@ func (a *App) Open() *mygo.Window {
 	go a.loadPeers()
 	a.connect(a.opts.Start)
 	a.startUpdates()
+	a.startAutoSync()
+	go func() {
+		for range time.Tick(time.Minute) {
+			a.onMain(a.vaultTick)
+			a.onMain(a.notionSyncTick)
+		}
+	}()
 	a.setUpTray()
 	a.setUpFloating()
 	return a.win
@@ -315,6 +354,8 @@ func (a *App) Open() *mygo.Window {
 // handleEvent applies a daemon event of connection gen. It runs on the
 // client's read goroutine and hands the change to the main thread.
 func (a *App) handleEvent(gen int, ev proto.Event) {
+	a.syncEvent(ev)
+	a.notifyEvent(ev, a.host.Name)
 	var apply func()
 	switch ev.Name {
 	case proto.EventSessionUpdated:
@@ -333,6 +374,7 @@ func (a *App) handleEvent(gen int, ev proto.Event) {
 			if i >= 0 {
 				a.alert(old, info)
 				a.markUnread(old, info)
+				a.soundFor(old, info, true)
 			}
 		}
 	case proto.EventBrowserRequest:
@@ -341,6 +383,12 @@ func (a *App) handleEvent(gen int, ev proto.Event) {
 			return
 		}
 		apply = func() { a.driveBrowser(req) }
+	case proto.EventVaultRequest:
+		var req proto.VaultRequest
+		if json.Unmarshal(ev.Data, &req) != nil {
+			return
+		}
+		apply = func() { a.vaultEvent(a.client, a.host, req) }
 	case proto.EventSessionRemoved:
 		var ref proto.SessionRef
 		if json.Unmarshal(ev.Data, &ref) != nil {
@@ -353,8 +401,45 @@ func (a *App) handleEvent(gen int, ev proto.Event) {
 			return
 		}
 		apply = func() { a.setProjects(list) }
+	case proto.EventFeaturesChanged:
+		apply = a.loadFeatures
+	case proto.EventFeaturesRequested:
+		var req proto.FeatureRequest
+		if json.Unmarshal(ev.Data, &req) != nil {
+			return
+		}
+		cl, host := a.client, a.host.Name
+		apply = func() { a.featureRequested(cl, host, req) }
+	case proto.EventNoteChat:
+		if apply = a.noteChatEvent(ev.Data); apply == nil {
+			return
+		}
 	case proto.EventNotesChanged:
 		if apply = a.notesEvent(ev.Data); apply == nil {
+			return
+		}
+	case proto.EventProjectClone:
+		if apply = a.cloneEvent(ev.Data); apply == nil {
+			return
+		}
+	case proto.EventNoteImport:
+		if apply = a.noteImportEvent(ev.Data); apply == nil {
+			return
+		}
+	case proto.EventCanvasChat:
+		if apply = a.canvasChatEvent(ev.Data); apply == nil {
+			return
+		}
+	case proto.EventCanvasesChanged, proto.EventCanvasChanged, proto.EventCanvasRender:
+		if apply = a.canvasEvent(ev); apply == nil {
+			return
+		}
+	case proto.EventNoteGroupsChanged:
+		if apply = a.groupsEvent(ev.Data); apply == nil {
+			return
+		}
+	case proto.EventNoteProposalsChanged:
+		if apply = a.proposalsEvent(ev.Data); apply == nil {
 			return
 		}
 	case proto.EventChecksChanged:
@@ -369,12 +454,14 @@ func (a *App) handleEvent(gen int, ev proto.Event) {
 		if apply = a.portsEvent(ev.Data); apply == nil {
 			return
 		}
-	case proto.EventTrafficExchange, proto.EventTrafficPaused, proto.EventTrafficAttached:
+	case proto.EventTrafficExchange, proto.EventTrafficPaused, proto.EventTrafficAttached, proto.EventTrafficCapture:
 		if apply = a.trafficEvent(ev); apply == nil {
 			return
 		}
 	default:
-		return
+		if apply = a.linkEvent(ev, func() (*client.Client, string) { return a.client, a.daemonInfo.ID }); apply == nil {
+			return
+		}
 	}
 	a.onMain(func() {
 		if gen == a.gen {
@@ -423,6 +510,8 @@ func (a *App) refresh(c *client.Client, gen int, openProject string) {
 			}
 		}
 		a.restoreView()
+		a.syncSoon()
+		a.loadNotify()
 	})
 	a.loadPipelines(c, gen)
 }
@@ -611,6 +700,7 @@ func (a *App) selectSession(s proto.SessionInfo) {
 	a.selected = s.ID
 	a.page = ""
 	delete(a.unread, s.ID)
+	a.updateBadge()
 	if s.Hibernated {
 		a.continueSession(s) // shown, it wakes on its conversation
 	}

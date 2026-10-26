@@ -69,6 +69,9 @@ func (a *App) workspaceView(c *ui.Context) {
 	case a.page == pageAppearance:
 		a.appearancePage(c)
 		return
+	case a.page == pageVault:
+		a.vaultPage(c)
+		return
 	case a.page == pageHosts:
 		a.hostsPage(c)
 		return
@@ -80,6 +83,9 @@ func (a *App) workspaceView(c *ui.Context) {
 		return
 	case a.page == pageNotes && a.client != nil:
 		a.notesPage(c)
+		return
+	case a.page == pageCanvas && a.client != nil:
+		a.canvasPage(c)
 		return
 	case a.page == pageCredits && a.client != nil:
 		a.creditsPage(c)
@@ -134,8 +140,11 @@ func (a *App) viewHeader(c *ui.Context, fn func()) {
 }
 
 // sessionsHidden reports whether the Sessions panel gives way: to a
-// maximized session, or to the room the user asked for it to leave.
-func (a *App) sessionsHidden() bool { return a.maximized != "" || a.state.HideSessions }
+// maximized session, to the room the user asked for it to leave, or, for
+// a page other than the sessions', to the room of a narrow window.
+func (a *App) sessionsHidden() bool {
+	return a.maximized != "" || a.state.HideSessions || a.page != "" && a.winW > 0 && a.winW < 1100
+}
 
 // toggleSessionsPanel folds the Sessions panel away, or brings it back.
 func (a *App) toggleSessionsPanel() { a.state.HideSessions = !a.state.HideSessions }

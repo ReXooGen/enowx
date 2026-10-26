@@ -47,26 +47,57 @@ func (a *App) showsChat(id string) bool { return a.state.Chats[id] }
 
 // chatView draws the chat in place of the terminal.
 func (a *App) chatView(c *ui.Context, s proto.SessionInfo) {
+	a.chatViewWhile(c, s, func() bool { return a.showsChat(s.ID) })
+}
+
+// chatViewWhile draws session s's chat, following its conversation while
+// shown says it shows.
+func (a *App) chatViewWhile(c *ui.Context, s proto.SessionInfo, shown func() bool) {
+	a.chatViewSending(c, s, shown, chatTweaks{})
+}
+
+// chatTweaks change a chat for a page's agent: where the composer's
+// messages go, pastes, and how the user's messages read. Nil ones are a
+// session's own.
+type chatTweaks struct {
+	send     func(text string, files []string)
+	paste    func(ch *chatview.Chat, text string) bool
+	showUser func(string) string
+}
+
+// chatViewSending is chatViewWhile as tw changes it.
+func (a *App) chatViewSending(c *ui.Context, s proto.SessionInfo, shown func() bool, tw chatTweaks) {
+	send, paste := tw.send, tw.paste
+	if send == nil {
+		send = func(text string, files []string) { a.sendWithFiles(s.ID, text, files) }
+	}
 	ch := a.chatOf(s.ID)
 	if cl := a.client; cl != nil {
 		gen := a.gen
 		ch.Follow(cl, s.ID, a.onMain, func() bool {
-			return gen == a.gen && a.showsChat(s.ID) && a.chats[s.ID] == ch
+			return gen == a.gen && shown() && a.chats[s.ID] == ch
 		})
 	}
 	ch.View(c, chatview.Options{
 		Agent:     s.Agent,
 		AgentName: a.agentName(s.Agent),
 		Working:   isWorking(s),
-		Send:      func(text string, files []string) { a.sendWithFiles(s.ID, text, files) },
-		Interrupt: func() { a.typeIntoSession(s.ID, "\x1b") },
+		Send:      send,
+		Interrupt: func() { a.interruptSession(s) },
 		Set:       func(setting, id string) { a.setAgentSetting(s, setting, id) },
-		Paste:     func(text string) bool { return a.chatPaste(s, ch, text) },
-		OpenLink:  func(link string) bool { return a.openLink(s.ID, link) },
+		Paste: func(text string) bool {
+			if paste != nil {
+				return paste(ch, text)
+			}
+			return a.chatPaste(s, ch, text)
+		},
+		OpenLink: func(link string) bool { return a.openLink(s.ID, link) },
 		Edit: func(back int, original, text string, files []string, done func(error)) {
 			a.editMessage(s.ID, back, original, text, files, done)
 		},
-		Ended: s.Exited,
+		Ended:       s.Exited,
+		ShowUser:    tw.showUser,
+		FirstPrompt: s.Prompt,
 	})
 }
 
@@ -91,6 +122,24 @@ func (a *App) setAgentSetting(s proto.SessionInfo, setting, id string) {
 			}
 		}()
 	}
+}
+
+// interruptSession stops what session s's agent is doing, with its own
+// key, through the daemon: a pane not attached yet would drop it.
+func (a *App) interruptSession(s proto.SessionInfo) {
+	key := "\x03"
+	if preset, ok := agent.Find(s.Agent); ok {
+		key = preset.InterruptKey()
+	}
+	cl := a.client
+	if cl == nil {
+		return
+	}
+	go func() {
+		if err := cl.Input(s.ID, key, false, false); err != nil {
+			a.onMain(func() { a.status = err.Error() })
+		}
+	}()
 }
 
 // typeIntoSession types raw keys into the session.

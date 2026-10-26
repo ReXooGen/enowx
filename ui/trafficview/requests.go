@@ -55,9 +55,16 @@ func (v *View) requestsPage(c *ui.Context, o Options) {
 			grow = 0.8
 		}
 		ui.Column(c.Key("list")).Grow(grow).FillWidth().MinHeight(90).Children(func() {
-			ui.List(c.Key("rows"), &v.listState, len(v.shown), func(i int) {
-				s := v.list[v.shown[i]]
-				if v.row(c, s, i == v.selected).Clicked() {
+			v.rows = v.gapRows()
+			gaps := v.gaps()
+			ui.List(c.Key("rows"), &v.listState, len(v.rows), func(i int) {
+				r := v.rows[i]
+				if r < 0 {
+					gapRow(c, gaps[-1-r])
+					return
+				}
+				s := v.list[v.shown[r]]
+				if v.row(c, s, r == v.selected).Clicked() {
 					v.open(o, s.ID)
 				}
 			}).Grow(1).FillWidth()
@@ -159,7 +166,7 @@ func (v *View) filterBar(c *ui.Context, o Options) {
 		widget.MoreMenu(c, &v.menu, "requests", func(done func()) {
 			f := strings.TrimSpace(v.filter)
 			saved := slices.Contains(v.rules.filters, f)
-			if f != "" && !saved && widget.MenuItem(c, icon.Plus, "Save this filter with the project", false) {
+			if f != "" && !saved && widget.MenuItemTip(c, icon.Plus, "Save filter", "Keep this filter with the project", false) {
 				v.rules.saveAll(o, v.rules.list, append(slices.Clone(v.rules.filters), f), nil)
 				done()
 			}

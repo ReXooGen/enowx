@@ -1,6 +1,8 @@
 package session
 
 import (
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -53,6 +55,31 @@ func (m *Manager) SetBudget(s *Session, budget time.Duration) {
 
 // noteMax bounds a session's note: a line or two of status.
 const noteMax = 300
+
+// SetCreds records the vault's credentials lent to session s.
+func (m *Manager) SetCreds(s *Session, names []string) {
+	s.mu.Lock()
+	s.meta.Creds = slices.Clone(names)
+	s.mu.Unlock()
+	m.notify(s)
+}
+
+// SetFeatures sets session s's own feature switches.
+func (m *Manager) SetFeatures(s *Session, on map[string]bool) {
+	s.mu.Lock()
+	s.meta.Features = maps.Clone(on)
+	s.mu.Unlock()
+	m.notify(s)
+}
+
+// SetNoAutoHibernate keeps session s from hibernating on its own, or
+// lets it again.
+func (m *Manager) SetNoAutoHibernate(s *Session, never bool) {
+	s.mu.Lock()
+	s.meta.NoAutoHibernate = never
+	s.mu.Unlock()
+	m.notify(s)
+}
 
 // SetNote sets what session s is at, "" to clear it.
 func (m *Manager) SetNote(s *Session, note string) {

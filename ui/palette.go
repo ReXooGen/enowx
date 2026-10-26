@@ -55,12 +55,14 @@ func (a *App) commands() []command {
 		}
 		if a.client != nil {
 			out = append(out, command{"copy-project", "Copy " + p.Name + " to another host…", "with its sessions", icon.Server, func() { a.openCopy(p) }})
+			out = append(out, command{"links-project", "Sync & push " + p.Name + " on its own…", "copies on other hosts, auto push", icon.ArrowUp, func() { a.openLinks(p) }})
 		}
 	}
 	out = append(out, a.sessionCommands()...)
 	out = append(out, a.runPaletteCommands()...)
 	out = append(out,
 		command{"open", "Open folder", modKey + "O", icon.FolderPlus, a.openFolder},
+		command{"clone", "Clone from Git", "", icon.Git, a.openClone},
 		command{"goto-file", "Go to file…", modKey + "P", icon.File, a.openQuickOpen},
 		command{"add-host", "Add host", "a VPS or another device", icon.Server, a.openAddHost},
 		command{"hosts", "Manage hosts", "", icon.Server, func() { a.page = pageHosts }},

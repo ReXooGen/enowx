@@ -223,7 +223,7 @@ func (a *App) hostsPage(c *ui.Context) {
 			widget.SectionLabel(c, "HOSTS", theme.Muted)
 			ui.Text(c, "Saved on this device in ~/"+transport.HomeName+"/hosts.json. Removing a host leaves its server and sessions untouched.").
 				FontSize(12).TextColor(theme.Muted)
-			ui.Grid(c).FillWidth().Columns(2).Gap(8).Children(func() {
+			widget.FitGrid(c, 340, 3).Gap(8).Children(func() {
 				for _, h := range a.allHosts() {
 					a.hostCard(c.Key(h.ID), h)
 				}
@@ -232,7 +232,7 @@ func (a *App) hostsPage(c *ui.Context) {
 			if note := a.tailnetNote(); note != "" {
 				ui.Text(c, note).FontSize(12).TextColor(theme.Muted)
 			}
-			ui.Grid(c).FillWidth().Columns(2).Gap(8).Children(func() {
+			widget.FitGrid(c, 340, 3).Gap(8).Children(func() {
 				for _, p := range a.newPeers() {
 					widget.Card(c.Key(p.Address())).Children(func() {
 						ui.Row(c).FillWidth().Gap(10).Children(func() {
@@ -299,7 +299,7 @@ func (a *App) hostCard(c *ui.Context, h hosts.Host) {
 						a.openEditHost(h)
 						done()
 					}
-					if (h.RunAs != "" || h.KeepRoot) && widget.MenuItem(c, icon.Agent("shell"), "Ask which user to run as", false) {
+					if (h.RunAs != "" || h.KeepRoot) && widget.MenuItemTip(c, icon.Agent("shell"), "Choose user again", "Ask which user to run as at the next connection", false) {
 						h.RunAs, h.KeepRoot = "", false
 						a.chooseRunAs = h.ID // the next connection asks, rather than picking
 						if err := a.opts.Hosts.Update(h); err != nil {
@@ -309,19 +309,16 @@ func (a *App) hostCard(c *ui.Context, h hosts.Host) {
 						done()
 					}
 					widget.MenuSeparator(c)
-					if p, ok := vps.Find(h.Provider); ok && h.ProviderID != "" && widget.MenuItem(c, icon.Trash, "Delete the server at "+p.Name+"…", true) {
+					if p, ok := vps.Find(h.Provider); ok && h.ProviderID != "" && widget.MenuItemTip(c, icon.Trash, "Delete server…", "Delete the server at "+p.Name+": it and its disk are gone", true) {
 						a.deletingServer = &h
 						done()
 					}
 					if widget.MenuItem(c, icon.Trash, "Remove from the list", true) {
-						if err := a.opts.Hosts.Remove(h.ID); err != nil {
-							a.status = err.Error()
-						}
-						a.forgetPassword(h)
-						a.reloadHosts()
-						if current {
-							a.connect(LocalHost())
-						}
+						a.removeHost(h)
+						done()
+					}
+					if h.ID != hosts.LocalID && widget.MenuItemTip(c, icon.Trash, "Remove & clear…", "Remove it from the list and clear the data synced to it", true) {
+						a.clearingHost = &h
 						done()
 					}
 				})

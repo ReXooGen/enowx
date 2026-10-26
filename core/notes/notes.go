@@ -7,8 +7,10 @@ import (
 	"bufio"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -86,11 +88,23 @@ func (s *Store) Save(n proto.Note) (proto.NoteInfo, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	n.Title = strings.Join(strings.Fields(n.Title), " ")
-	n.Icon = strings.TrimSpace(strings.ReplaceAll(n.Icon, "\n", ""))
+	icon, err := checkIcon(n.Icon)
+	if err != nil {
+		return proto.NoteInfo{}, err
+	}
+	n.Icon = icon
 	now := time.Now().UTC().Truncate(time.Second)
 	if n.ID == "" {
 		if n.Parent != "" {
 			if _, err := s.read(n.Parent, false); err != nil {
+				return proto.NoteInfo{}, err
+			}
+		}
+		n.Group = strings.TrimSpace(n.Group)
+		if n.Parent != "" {
+			n.Group = "" // a page under another is in its group
+		} else if n.Group != "" {
+			if err := s.ensureGroup(n.Group); err != nil {
 				return proto.NoteInfo{}, err
 			}
 		}
@@ -112,13 +126,23 @@ func (s *Store) Save(n proto.Note) (proto.NoteInfo, error) {
 		if err != nil {
 			return proto.NoteInfo{}, err
 		}
-		n.Parent, n.Order, n.Created = old.Parent, old.Order, old.Created
+		n.Parent, n.Group, n.Order, n.Created = old.Parent, old.Group, old.Order, old.Created
+		if n.Agent == "" {
+			n.Agent = old.Agent // set by SetAgent
+		}
+		n.Projects = old.Projects // changed by Attach and Detach alone
+		s.keep(n.ID, false)
+		// Picked again, it needs no review.
+		n.IconReview = old.IconReview && n.Icon == old.Icon
+		if n.Icon == old.Icon {
+			icon = "" // not used anew
+		}
 	}
 	n.Updated = now
 	if err := s.write(n); err != nil {
 		return proto.NoteInfo{}, err
 	}
-	return n.NoteInfo, nil
+	return n.NoteInfo, s.usedIcon(icon)
 }
 
 // Delete removes note id and the notes under it.
@@ -146,8 +170,18 @@ func (s *Store) Delete(id string) error {
 		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("notes: %w", err)
 		}
+		_ = os.RemoveAll(s.AssetsDir(id)) // its files go with it
 	}
-	return nil
+	// What agents proposed for them goes with them.
+	props, err := s.Proposals()
+	if err != nil {
+		return err
+	}
+	kept := slices.DeleteFunc(props, func(p proto.NoteProposal) bool { return gone[p.Note.ID] || gone[p.Note.Parent] })
+	if len(kept) == len(props) {
+		return nil
+	}
+	return s.saveProposals(kept)
 }
 
 // Move puts note id under parent ("" for the top), before its child
@@ -187,16 +221,29 @@ func (s *Store) Move(id, parent, before string) error {
 		}
 	}
 	siblings = slices.Insert(siblings, at, id)
+	// At the top, it joins the group of the note it goes before; under
+	// another, its parent's.
+	group := byID[id].Group
+	switch {
+	case parent != "":
+		group = ""
+	case before != "":
+		group = byID[before].Group
+	}
 	for i, sid := range siblings {
 		n := byID[sid]
-		if n.Order == i && n.Parent == parent {
+		g := n.Group
+		if sid == id {
+			g = group
+		}
+		if n.Order == i && n.Parent == parent && n.Group == g {
 			continue
 		}
 		full, err := s.read(sid, true)
 		if err != nil {
 			return err
 		}
-		full.Order, full.Parent = i, parent
+		full.Order, full.Parent, full.Group = i, parent, g
 		if err := s.write(full); err != nil {
 			return err
 		}
@@ -220,6 +267,11 @@ func (s *Store) read(id string, body bool) (proto.Note, error) {
 		return proto.Note{}, fmt.Errorf("notes: %w", err)
 	}
 	defer f.Close()
+	return parse(id, path, f, body)
+}
+
+// parse reads note id from r, file path's content.
+func parse(id, path string, f io.Reader, body bool) (proto.Note, error) {
 	n := proto.Note{NoteInfo: proto.NoteInfo{ID: id}}
 	r := bufio.NewReader(f)
 	first, _ := r.ReadString('\n')
@@ -242,8 +294,16 @@ func (s *Store) read(id string, body bool) (proto.Note, error) {
 			n.Title = value
 		case "icon":
 			n.Icon = value
+		case "iconReview":
+			n.IconReview = value == "true"
+		case "projects":
+			_ = json.Unmarshal([]byte(value), &n.Projects)
 		case "parent":
 			n.Parent = value
+		case "group":
+			n.Group = value
+		case "agent":
+			n.Agent = value
 		case "order":
 			n.Order, _ = strconv.Atoi(value)
 		case "created":
@@ -274,8 +334,21 @@ func (s *Store) write(n proto.Note) error {
 	if n.Icon != "" {
 		fmt.Fprintf(&b, "icon: %s\n", n.Icon)
 	}
+	if n.IconReview {
+		b.WriteString("iconReview: true\n")
+	}
 	if n.Parent != "" {
 		fmt.Fprintf(&b, "parent: %s\n", n.Parent)
+	}
+	if len(n.Projects) > 0 {
+		data, _ := json.Marshal(n.Projects)
+		fmt.Fprintf(&b, "projects: %s\n", data)
+	}
+	if n.Group != "" {
+		fmt.Fprintf(&b, "group: %s\n", n.Group)
+	}
+	if n.Agent != "" {
+		fmt.Fprintf(&b, "agent: %s\n", n.Agent)
 	}
 	fmt.Fprintf(&b, "order: %d\n", n.Order)
 	fmt.Fprintf(&b, "created: %s\n", n.Created.Format(time.RFC3339))

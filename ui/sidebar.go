@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -29,9 +30,18 @@ func (a *App) sessionList(c *ui.Context) {
 					}
 					ui.Text(c, state).FontSize(10.5).TextColor(theme.Muted).SingleLine().Shrink(1)
 				})
-				if widget.IconButton(c, icon.FolderPlus, "Open folder ("+modKey+"O)", false).Clicked() {
-					a.openFolder()
-				}
+				add := widget.IconButton(c, icon.FolderPlus, "Add a project: open a folder or clone from Git", false)
+				a.menu.OpenBelow(add, "add-project", 28)
+				a.menu.Show(c, add, "add-project", func(done func()) {
+					if widget.MenuItem(c, icon.FolderPlus, "Open folder… ("+modKey+"O)", false) {
+						a.openFolder()
+						done()
+					}
+					if widget.MenuItem(c, icon.Git, "Clone from Git…", false) {
+						a.openClone()
+						done()
+					}
+				})
 				p, ok := a.currentProject()
 				b := widget.Button(c, widget.Primary, icon.Plus, "New", "").Height(28).PaddingX(10).Tooltip("New session (" + modKey + "N)")
 				if !ok {
@@ -115,6 +125,13 @@ func (a *App) projectGroup(c *ui.Context, p proto.ProjectInfo) bool {
 		}
 		a.menu.Open(row, "project:"+p.Path)
 		a.menu.Show(c, row, "project:"+p.Path, func(done func()) { a.projectMenuItems(c, p, done) })
+		if n := a.linkConflictCount(p.Path); n > 0 {
+			warn := widget.IconButton(c, icon.Alert, fmt.Sprintf("%d file(s) in conflict with its other copies: pick versions", n), false)
+			warn.TextColor(theme.Warning)
+			if warn.Clicked() {
+				a.openLinks(p)
+			}
+		}
 		more := widget.IconButton(c, icon.More, "More for "+p.Name, false)
 		a.menu.OpenBelow(more, "project-more:"+p.Path, 28)
 		a.menu.Show(c, more, "project-more:"+p.Path, func(done func()) { a.projectMenuItems(c, p, done) })
@@ -127,6 +144,7 @@ func (a *App) projectGroup(c *ui.Context, p proto.ProjectInfo) bool {
 	}
 	if !filtering {
 		a.pipelineCards(c, p)
+		a.projectNotesRow(c.Key("notes:"+p.Path), p)
 	}
 	if len(sessions) == 0 {
 		ui.Text(c, "No sessions yet").FontSize(11).TextColor(theme.Muted).Padding(4, 8, 4, 22)
@@ -144,20 +162,40 @@ func (a *App) projectMenuItems(c *ui.Context, p proto.ProjectInfo, done func()) 
 		a.openNewSession(p)
 		done()
 	}
-	if a.client != nil && widget.MenuItem(c, icon.Chat, "Past conversations…", false) {
+	if a.client != nil && widget.MenuItemTip(c, icon.Chat, "History…", "The agents' past conversations in this project, to resume", false) {
 		a.openHistory(p)
 		done()
 	}
-	if a.client != nil && p.IsGit && widget.MenuItem(c, icon.List, "New pipeline…", false) {
+	if a.client != nil && p.IsGit && widget.MenuItemTip(c, icon.List, "New pipeline…", "Agents one after another on a branch: plan, build, review", false) {
 		a.openPipeline(p)
 		done()
 	}
-	if a.client != nil && widget.MenuItem(c, icon.Server, "Copy to another host…", false) {
+	if a.client != nil && widget.MenuItemTip(c, icon.Notebook, "New note", "A note attached to this project", false) {
+		a.newNoteFor(p)
+		done()
+	}
+	if n := len(a.notesOfProject(p.Path)); a.client != nil && n > 0 && widget.MenuItem(c, icon.Notebook, fmt.Sprintf("Notes (%d)", n), false) {
+		a.showProjectNotes(p.Path)
+		done()
+	}
+	if a.client != nil && p.IsGit && len(a.allHosts()) > 1 && widget.MenuItemTip(c, icon.Git, "Clone to host…", "Clone this repository on another host", false) {
+		a.openCloneTo(p)
+		done()
+	}
+	if a.client != nil && widget.MenuItemTip(c, icon.Server, "Copy to host…", "Copy the project and its sessions to another host", false) {
 		a.openCopy(p)
 		done()
 	}
-	if a.client != nil && len(a.allHosts()) > 1 && widget.MenuItem(c, icon.Sync, "Sync with another host…", false) {
+	if a.client != nil && len(a.allHosts()) > 1 && widget.MenuItemTip(c, icon.Sync, "Sync with host…", "Sync its files with its copy on another host, now", false) {
 		a.openProjectSync(p)
+		done()
+	}
+	if a.client != nil && widget.MenuItemTip(c, icon.ArrowUp, "Auto sync & push…", "Keep its copies on other hosts in sync, and push to a branch of its own, on a schedule", false) {
+		a.openLinks(p)
+		done()
+	}
+	if a.client != nil && widget.MenuItemTip(c, icon.Moon, "Hibernate idle", "Hibernate the project's idle sessions, freeing their memory", false) {
+		a.hibernateIdle(p.Path)
 		done()
 	}
 	if a.client != nil {
@@ -165,7 +203,7 @@ func (a *App) projectMenuItems(c *ui.Context, p proto.ProjectInfo, done func()) 
 		a.projectArrangeItems(c, p, done)
 	}
 	widget.MenuSeparator(c)
-	if widget.MenuItem(c, icon.Trash, "Remove from enowX…", true) {
+	if widget.MenuItemTip(c, icon.Trash, "Remove…", "Remove the project from enowX; its files stay", true) {
 		a.removing = &p
 		done()
 	}
@@ -241,6 +279,9 @@ func (a *App) sessionRow(c *ui.Context, i int, s proto.SessionInfo) {
 	st := statusOf(s)
 	active := s.ID == a.selected
 	row := ui.ButtonBase(c).Label(a.sessionName(s)).Transition(widget.RowMotion(i))
+	if a.picked[s.ID] && !active {
+		row.Border(1, theme.AccentLine)
+	}
 	widget.ListRow(c, row, active, "sessions", func() {
 		agentTile(c, s.Agent, 26)
 		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
@@ -278,7 +319,12 @@ func (a *App) sessionRow(c *ui.Context, i int, s proto.SessionInfo) {
 	})
 	a.sessionMenu(c, row, s)
 	if row.Clicked() {
-		a.selectSession(s)
+		if row.ClickModifiers()&(ui.Cmd|ui.Shift) != 0 {
+			a.pick(s)
+		} else {
+			a.picked = nil
+			a.selectSession(s)
+		}
 	}
 }
 
@@ -325,10 +371,16 @@ func (a *App) sessionMenuItems(c *ui.Context, s proto.SessionInfo, done func()) 
 		}
 		done()
 	}
+	muted := slices.Contains(a.notifySettings().MutedSessions, s.ID)
+	if label := map[bool]string{false: "Mute sounds", true: "Unmute sounds"}[muted]; s.Agent != "" && widget.MenuItem(c, icon.VolumeDown, label, false) {
+		a.muteSession(s.ID, !muted)
+		done()
+	}
 	if canContinue(s) && widget.MenuItem(c, icon.Play, "Continue", false) {
 		a.continueSession(s)
 		done()
 	}
+	a.hibernateItems(c, s, done)
 	if !s.Exited && widget.MenuItem(c, icon.Gauge, "Set time budget…", false) {
 		a.askBudget(s)
 		done()
@@ -340,8 +392,13 @@ func (a *App) sessionMenuItems(c *ui.Context, s proto.SessionInfo, done func()) 
 		}
 	}
 	if a.splitOn() && s.Project == a.project && len(a.splitSessions(a.projectSessions(a.project))) > 1 &&
-		widget.MenuItem(c, icon.Split, "Leave out of split view", false) {
+		widget.MenuItemTip(c, icon.Split, "Unsplit", "Leave it out of the sessions side by side", false) {
 		a.hideFromSplit(s.ID, true)
+		done()
+	}
+	if i := slices.IndexFunc(a.projects, func(p proto.ProjectInfo) bool { return p.Path == s.Project }); i >= 0 &&
+		widget.MenuItemTip(c, icon.Notebook, "New note", "A note attached to its project", false) {
+		a.newNoteFor(a.projects[i])
 		done()
 	}
 	widget.MenuSeparator(c)

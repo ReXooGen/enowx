@@ -37,9 +37,12 @@ const (
 	sectionApp         = "App"
 	sectionFloating    = "Floating control"
 	sectionDiagnostics = "Diagnostics"
+	sectionSync        = "Sync"
+	sectionFeatures    = "Features"
+	sectionNotify      = "Notifications"
 )
 
-var settingsSections = []string{sectionLibrary, sectionSessions, sectionAccounts, sectionAgentAPIs, sectionEnvironment, sectionTerminal, sectionAutomations, sectionApp, sectionFloating, sectionDiagnostics}
+var settingsSections = []string{sectionLibrary, sectionSessions, sectionAccounts, sectionAgentAPIs, sectionEnvironment, sectionTerminal, sectionAutomations, sectionNotify, sectionFeatures, sectionSync, sectionApp, sectionFloating, sectionDiagnostics}
 
 // hostSettings is what the sections ask the connected host, read when
 // they show.
@@ -48,7 +51,8 @@ type hostSettings struct {
 	vars     []proto.SessionEnvVar
 	loaded   bool
 	maxAgent int
-	sleep    int // HibernateAfter, in minutes
+	sleep    int  // HibernateAfter, in minutes
+	neverHib bool // new sessions don't hibernate on their own (every host)
 	log      proto.DaemonLog
 	err      string
 	newName  string
@@ -74,7 +78,9 @@ func (a *App) loadHostSettings() {
 		vars, err := cl.SessionEnv()
 		st, _ := cl.Settings()
 		log, _ := cl.DaemonLog(80)
+		prefs, _ := cl.HibernatePrefs()
 		a.onMain(func() {
+			hs.neverHib = prefs.NeverByDefault
 			hs.loaded = true
 			if err != nil {
 				hs.err = client.Explain(err)
@@ -91,7 +97,7 @@ func (a *App) settingsBody(c *ui.Context) {
 		return
 	}
 	ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-		ui.Column(c).FillWidth().MaxWidth(720).AlignSelf(ui.Center).Padding(20).Gap(16).Children(func() {
+		ui.Column(c).FillWidth().Padding(24, 32).Gap(16).Children(func() {
 			switch a.settingsSection {
 			case sectionSessions:
 				a.sessionDefaults(c)
@@ -111,6 +117,12 @@ func (a *App) settingsBody(c *ui.Context) {
 				a.floatingSection(c)
 			case sectionDiagnostics:
 				a.diagnosticsSection(c)
+			case sectionNotify:
+				a.notifySection(c)
+			case sectionSync:
+				a.syncSection(c)
+			case sectionFeatures:
+				a.featuresSection(c)
 			}
 		})
 	})
@@ -188,6 +200,17 @@ func (a *App) sessionDefaults(c *ui.Context) {
 			a.setHibernation(sleepChoices[i])
 		}
 	})
+	if switchRow(c, &hs.neverHib, "New sessions don't hibernate on their own",
+		"For sessions to keep running however long they're idle; the same on every host. A session's menu sets it for that session, and Hibernate stops one by hand.") {
+		never, cl := hs.neverHib, a.client
+		if cl != nil {
+			go func() {
+				if err := cl.SetAutoHibernate(proto.SessionAutoHibernateParams{Default: true, Never: never}); err != nil {
+					a.onMain(func() { a.status = client.Explain(err) })
+				}
+			}()
+		}
+	}
 }
 
 // quitSection says what quitting the app does to this device's agents.
@@ -435,7 +458,7 @@ func (a *App) diagnosticsSection(c *ui.Context) {
 		rows = append(rows, [2]string{"Displays", info.DisplayNote})
 	}
 	widget.Card(c).Children(func() {
-		ui.Grid(c).FillWidth().Columns(2).Gap(10).Children(func() {
+		widget.FitGrid(c, 260, 2).Gap(10).Children(func() {
 			for _, r := range rows {
 				ui.Column(c.Key(r[0])).MinWidth(0).Gap(2).Children(func() {
 					ui.Text(c, r[0]).FontSize(11).TextColor(theme.Muted)

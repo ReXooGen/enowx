@@ -9,10 +9,12 @@ import (
 	"io"
 	"maps"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/enowx/enowx/core/agent"
+	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/version"
 )
 
@@ -414,11 +416,26 @@ type mcpGroup struct {
 func mcpGroups() []mcpGroup {
 	return []mcpGroup{
 		{mcpTools, runner.traffic},
+		{captureTools, runner.traffic},
 		{browserTools, runner.browser},
 		{androidTools, runner.android},
 		{sessionTools, runner.command},
+		{hibernateTools, runner.command},
 		{moreTools, runner.command},
 		{noteTools, runner.notes},
+		{noteHistoryTools, runner.notes},
+		{noteAgentTools, runner.notes},
+		{iconTools, runner.icons},
+		{notesIOTools, runner.notes},
+		{cloneTools, runner.projectCmd},
+		{syncTools, runner.sync},
+		{featureTools, runner.features},
+		{notifyTools, runner.notify},
+		{attachTools, runner.notes},
+		{contextTools, runner.projectCmd},
+		{canvasTools, runner.canvasCmd},
+		{projectLinkTools, runner.projectCmd},
+		{credsTools, runner.creds},
 	}
 }
 
@@ -445,7 +462,35 @@ func (r runner) mcp(in io.Reader, out io.Writer) error {
 	}
 	tools := map[string]mcpTool{}
 	run := map[string]func(runner, []string) error{}
-	for _, g := range mcpGroups() {
+	groups, instructions := mcpGroups(), agent.Guide
+	if r.c != nil && os.Getenv(proto.EnvNotesPropose) == "" {
+		// The features the user has off serve no tools and aren't told of.
+		if g, err := r.c.FeaturesGuide(proto.FeaturesParams{Session: os.Getenv(EnvSession)}); err == nil && g.Guide != "" {
+			instructions = g.Guide
+			for i := range groups {
+				groups[i].tools = slices.DeleteFunc(slices.Clone(groups[i].tools), func(t mcpTool) bool {
+					f := agent.FeatureOfTool(t.name)
+					return f != "" && !g.On[f]
+				})
+			}
+		}
+	}
+	if os.Getenv(proto.EnvCanvasChat) != "" {
+		// The Canvas page's agent: its canvases, nothing else.
+		instructions = agent.CanvasChatGuide + agent.CanvasGuide
+		groups = []mcpGroup{{canvasTools, runner.canvasCmd}}
+	}
+	if os.Getenv(proto.EnvNotesPropose) != "" {
+		instructions = agent.NotesGuide
+		// The Notes page's agent: its notes, nothing else.
+		groups = []mcpGroup{
+			{slices.DeleteFunc(slices.Clone(noteTools), func(t mcpTool) bool { return t.name == "notes_delete" }), runner.notes},
+			{iconTools, runner.icons},
+			{slices.DeleteFunc(slices.Clone(attachTools), func(t mcpTool) bool { return t.name != "notes_projects" }), runner.notes},
+			{contextTools, runner.projectCmd},
+		}
+	}
+	for _, g := range groups {
 		for _, t := range g.tools {
 			tools[t.name], run[t.name] = t, g.run
 		}
@@ -468,13 +513,13 @@ func (r runner) mcp(in io.Reader, out io.Writer) error {
 				"protocolVersion": p.ProtocolVersion,
 				"capabilities":    map[string]any{"tools": map[string]any{}},
 				"serverInfo":      map[string]any{"name": "enowx", "version": version.String},
-				"instructions":    agent.Guide,
+				"instructions":    instructions,
 			}, nil)
 		case "ping":
 			reply(m.ID, map[string]any{}, nil)
 		case "tools/list":
 			var list []any
-			for _, g := range mcpGroups() {
+			for _, g := range groups {
 				for _, t := range g.tools {
 					props := map[string]any{}
 					for k, p := range t.props {

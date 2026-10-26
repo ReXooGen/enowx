@@ -151,9 +151,21 @@ type SessionInfo struct {
 	Group string `json:"group,omitempty"`
 	// Account is the agent's account it runs as, "" for its own.
 	Account string `json:"account,omitempty"`
+	// NotesFor is the note whose Notes page agent the session is (an
+	// agent on notes only, out of the session list).
+	NotesFor string `json:"notesFor,omitempty"`
+	// CanvasFor is the canvas whose Canvas page agent the session is (an
+	// agent on canvases, out of the session list).
+	CanvasFor string `json:"canvasFor,omitempty"`
+	// Creds is the vault's credentials lent to the session: their names.
+	Creds []string `json:"creds,omitempty"`
 	// Hibernated: the daemon stopped its idle agent (DaemonSettings.
 	// HibernateAfter); continuing it (session.continue) brings it back.
 	Hibernated bool `json:"hibernated,omitempty"`
+	// HibernatedHow is how and when it hibernated, while Hibernated.
+	HibernatedHow *HibernateState `json:"hibernatedHow,omitempty"`
+	// NoAutoHibernate keeps the daemon from hibernating it on its own.
+	NoAutoHibernate bool `json:"noAutoHibernate,omitempty"`
 }
 
 // MethodSessionNote sets a session's note: SessionNoteParams.
@@ -212,7 +224,28 @@ type SessionCreateParams struct {
 	// Shell starts a terminal (Agent "shell") with the host's shell at
 	// this path (ShellInfo.Path), not the one terminals start with.
 	// Older daemons ignore it.
-	Shell   string   `json:"shell,omitempty"`
+	Shell string `json:"shell,omitempty"`
+	// Creds starts the session with the vault's credentials of these
+	// names, the app holding the vault lending them. Older daemons ignore
+	// it.
+	Creds []string `json:"creds,omitempty"`
+	// NotesFor starts the agent as note NotesFor's in the Notes page: in
+	// a folder of its own, on notes only, its changes proposals
+	// (SessionInfo.NotesFor). Older daemons ignore it.
+	NotesFor string `json:"notesFor,omitempty"`
+	// CanvasFor starts the agent as canvas CanvasFor's in the Canvas page:
+	// in a folder of its own, with the canvas tools, reading the projects
+	// the canvas is attached to (SessionInfo.CanvasFor). Older daemons
+	// ignore it.
+	CanvasFor string `json:"canvasFor,omitempty"`
+	// Features are the session's own feature switches, over the user's
+	// (FeatureSetParams' session scope). Older daemons ignore them.
+	Features map[string]bool `json:"features,omitempty"`
+	// Model and Effort start the agent on a model and a reasoning effort
+	// (agent.Settings' choices), where its command line takes them.
+	// Older daemons ignore them.
+	Model   string   `json:"model,omitempty"`
+	Effort  string   `json:"effort,omitempty"`
 	Command []string `json:"command,omitempty"`
 	Dir     string   `json:"dir,omitempty"`
 	Env     []string `json:"env,omitempty"`

@@ -81,9 +81,23 @@ type Meta struct {
 	Group string
 	// Account is the agent's account it runs as (SessionInfo.Account).
 	Account string
+	// NotesFor is the note whose Notes page agent it is (SessionInfo.NotesFor).
+	NotesFor string
+	// CanvasFor is the canvas whose Canvas page agent it is
+	// (SessionInfo.CanvasFor).
+	CanvasFor string
+	// Features are its own feature switches (proto.FeatureSetParams).
+	Features map[string]bool
+	// Creds is the vault's credentials lent to it (SessionInfo.Creds).
+	Creds []string
 	// Hibernated: the daemon stopped the session's idle agent to free what
 	// it held; continuing the session brings it back on its conversation.
 	Hibernated bool
+	// HibernatedByHand and HibernatedAt say how and when it hibernated.
+	HibernatedByHand bool
+	HibernatedAt     time.Time
+	// NoAutoHibernate keeps the daemon from hibernating it on its own.
+	NoAutoHibernate bool
 }
 
 // EnvSession names the environment variable holding a session's ID in
@@ -153,7 +167,12 @@ func (s *Session) Info() proto.SessionInfo {
 		Note:            s.meta.Note,
 		Group:           s.meta.Group,
 		Account:         s.meta.Account,
+		NotesFor:        s.meta.NotesFor,
+		CanvasFor:       s.meta.CanvasFor,
+		Creds:           slices.Clone(s.meta.Creds),
 		Hibernated:      s.meta.Hibernated && s.exited,
+		HibernatedHow:   hibernatedHow(s.meta, s.exited),
+		NoAutoHibernate: s.meta.NoAutoHibernate,
 		Project:         s.meta.Project,
 		Agent:           s.meta.Agent,
 		Branch:          s.meta.Branch,
@@ -598,4 +617,11 @@ func newID() string {
 	var b [6]byte
 	_, _ = rand.Read(b[:])
 	return hex.EncodeToString(b[:])
+}
+
+func hibernatedHow(m Meta, exited bool) *proto.HibernateState {
+	if !m.Hibernated || !exited || m.HibernatedAt.IsZero() {
+		return nil
+	}
+	return &proto.HibernateState{Manual: m.HibernatedByHand, Since: m.HibernatedAt}
 }

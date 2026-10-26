@@ -79,6 +79,8 @@ type Chat struct {
 	contextUsed, contextWindow int64
 
 	input string
+	// showUser is Options.ShowUser, as the last frame gave it.
+	showUser func(string) string
 	// The agent's slash commands, once its daemon has read them, and the
 	// slash menu: the command highlighted, and the input it was closed on.
 	commands     []proto.AgentCommand
@@ -115,6 +117,9 @@ type pendingSet struct {
 // settleAfter is how long a setting asked for shows before what the agent
 // reports takes over again, should the agent not have taken it.
 const settleAfter = 15 * time.Second
+
+// SetDraft puts text in the composer, to finish and send, and focuses it.
+func (ch *Chat) SetDraft(text string) { ch.input, ch.focus = text, true }
 
 // ScrollToEnd scrolls to the newest entry on the next frame.
 func (ch *Chat) ScrollToEnd() { ch.scrollToEnd = true }
@@ -315,26 +320,63 @@ type Options struct {
 	// Ended says the session's program isn't running: nothing it said can
 	// be edited.
 	Ended bool
+	// Fresh says there is no session yet: the composer's first message
+	// starts it (Send), the settings picked before go with it (Set).
+	Fresh bool
+	// Empty, when set, is what a conversation without turns shows.
+	Empty func(c *ui.Context)
+	// ShowUser, when set, is how the user's messages read: what the app
+	// added to them (where the user is) left out.
+	ShowUser func(text string) string
+	// FirstPrompt is the message the session started with, shown as the
+	// user's until the agent records the conversation.
+	FirstPrompt string
 }
 
 // View draws the chat: the conversation, a list of its turns in a
 // centered column that follows its end, and the composer under it.
 func (ch *Chat) View(c *ui.Context, o Options) {
 	ch.links = o.OpenLink
+	ch.showUser = o.ShowUser
 	ch.editable = o.Edit != nil && agent.CanRewind(o.Agent) && !o.Ended
 	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 		switch {
-		case !ch.loaded:
+		case len(ch.turns) == 0 && strings.TrimSpace(o.FirstPrompt) != "" && (!ch.loaded || ch.supported):
+			ch.firstPrompt(c, o)
+		case len(ch.turns) == 0 && o.Empty != nil && (o.Fresh || ch.loaded && ch.supported):
+			ui.Scroll(c).Grow(1).FillWidth().Children(func() {
+				ui.Row(c).FillWidth().Justify(ui.Center).Padding(22, 24, 12, 24).Children(func() {
+					ui.Column(c).Grow(1).MaxWidth(columnWidth).Children(func() { o.Empty(c) })
+				})
+			})
+		case !ch.loaded && !o.Fresh:
 			ch.notice(c, "Reading the conversation…")
-		case len(ch.turns) == 0:
+		case len(ch.turns) == 0 && !o.Fresh:
 			ch.notice(c, ch.reason)
-		default:
+		case len(ch.turns) > 0:
 			ch.conversation(c, o)
+		default:
+			ui.Box(c).Grow(1)
 		}
-		if ch.supported || !ch.loaded {
+		if ch.supported || !ch.loaded || o.Fresh {
 			ch.composer(c, o)
 		}
 	})
+}
+
+// firstPrompt is the message the session started with, the agent at work
+// on it, until the agent records the conversation.
+func (ch *Chat) firstPrompt(c *ui.Context, o Options) {
+	editable := ch.editable
+	ch.editable = false // nothing recorded to go back to yet
+	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Padding(22, 24, 12, 24).Children(func() {
+		ui.Row(c).FillWidth().Justify(ui.Center).Children(func() {
+			ui.Column(c).Grow(1).MaxWidth(columnWidth).Children(func() {
+				ch.userMessage(c, proto.TranscriptEntry{Kind: proto.TranscriptUser, Text: o.FirstPrompt}, true)
+			})
+		})
+	})
+	ch.editable = editable
 }
 
 func (ch *Chat) notice(c *ui.Context, text string) {

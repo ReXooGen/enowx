@@ -53,6 +53,7 @@ func (a *App) newSessionDialog(c *ui.Context) {
 			a.skipPermissionsField(c)
 		}
 		a.displayField(c)
+		a.credsField(c)
 		if f.agent != agent.Shell {
 			widget.Field(c, "First prompt (optional)", func() {
 				ui.TextArea(c, &f.prompt).Height(76).Padding(9, 11).Radius(theme.RadiusControl).
@@ -259,7 +260,7 @@ func agentTile(c *ui.Context, id string, size float32) {
 func (a *App) branchFields(c *ui.Context) {
 	f := &a.newSession
 	widget.Field(c, "Branch", func() {
-		ui.Grid(c).FillWidth().Columns(2).Gap(8).Children(func() {
+		widget.FitGrid(c, 220, 2).Gap(8).Children(func() {
 			for _, m := range []struct{ mode, title, body string }{
 				{proto.BranchNew, "New branch", "In its own worktree, so it never touches your other sessions"},
 				{proto.BranchExisting, "Existing branch", "Continue work on a branch that already exists"},

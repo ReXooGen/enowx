@@ -308,8 +308,6 @@ type Options struct {
 	Set func(setting, id string)
 	// ChooseModel opens the host's provider/model controls, when available.
 	ChooseModel func()
-	// ModelControls draws host-backed provider/model dropdowns in the composer.
-	ModelControls func(*ui.Context)
 	// LoadCommands discovers commands before a session exists; callbacks run on main.
 	LoadCommands func(func(proto.AgentCommands, error))
 	// Paste sees a paste into the composer, with the clipboard's text ("" for

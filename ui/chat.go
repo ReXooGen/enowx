@@ -60,11 +60,10 @@ func (a *App) chatViewWhile(c *ui.Context, s proto.SessionInfo, shown func() boo
 // messages go, pastes, and how the user's messages read. Nil ones are a
 // session's own.
 type chatTweaks struct {
-	chooseModel   func()
-	modelControls func(*ui.Context)
-	send          func(text string, files []string)
-	paste         func(ch *chatview.Chat, text string) bool
-	showUser      func(string) string
+	chooseModel func()
+	send        func(text string, files []string)
+	paste       func(ch *chatview.Chat, text string) bool
+	showUser    func(string) string
 }
 
 // chatViewSending is chatViewWhile as tw changes it.
@@ -81,14 +80,13 @@ func (a *App) chatViewSending(c *ui.Context, s proto.SessionInfo, shown func() b
 		})
 	}
 	ch.View(c, chatview.Options{
-		Agent:         s.Agent,
-		ChooseModel:   tw.chooseModel,
-		ModelControls: tw.modelControls,
-		AgentName:     a.agentName(s.Agent),
-		Working:       isWorking(s),
-		Send:          send,
-		Interrupt:     func() { a.interruptSession(s) },
-		Set:           func(setting, id string) { a.setAgentSetting(s, setting, id) },
+		Agent:       s.Agent,
+		ChooseModel: tw.chooseModel,
+		AgentName:   a.agentName(s.Agent),
+		Working:     isWorking(s),
+		Send:        send,
+		Interrupt:   func() { a.interruptSession(s) },
+		Set:         func(setting, id string) { a.setAgentSetting(s, setting, id) },
 		Paste: func(text string) bool {
 			if paste != nil {
 				return paste(ch, text)

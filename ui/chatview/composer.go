@@ -159,9 +159,6 @@ func (ch *Chat) box(c *ui.Context, o Options) {
 			in.Focus()
 			ch.focus = false
 		}
-		if o.ModelControls != nil {
-			ui.Row(c.Key("model-controls")).FillWidth().Gap(6).Padding(4, 12).Children(func() { o.ModelControls(c) })
-		}
 		ui.Row(c).FillWidth().Gap(4).Padding(4, 8, 8, 8).Children(func() {
 			if widget.IconButton(c, icon.Paperclip, "Mention a file (@)", false).Clicked() {
 				ch.input += "@"

@@ -164,7 +164,11 @@ func (ch *Chat) editBack() int {
 // working, and for how long.
 func (ch *Chat) work(c *ui.Context, t turn, running bool) {
 	var thoughts, work []proto.TranscriptEntry
+	pendingTool := false
 	for _, entry := range t.work {
+		if entry.Kind == proto.TranscriptTool && !entry.Done {
+			pendingTool = true
+		}
 		if entry.Kind == proto.TranscriptThinking {
 			thoughts = append(thoughts, entry)
 		} else {
@@ -172,7 +176,7 @@ func (ch *Chat) work(c *ui.Context, t turn, running bool) {
 		}
 	}
 	if len(thoughts) > 0 {
-		ch.thoughts(c.Key("thoughts"), thoughts, running)
+		ch.thoughts(c.Key("thoughts"), thoughts, running && !pendingTool, running)
 	}
 	if len(work) > 0 {
 		t.work = work

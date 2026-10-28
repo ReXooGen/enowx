@@ -46,7 +46,9 @@ func (a *App) loadCanvasModels(hc *hostCanvasChat, agentID string) {
 				hc.modelsError = "OMP has no registered chat models on this host. Configure a provider in OMP, then refresh."
 				return
 			}
-			selectCanvasRegisteredModel(hc)
+			if hc.providerDraft != "" {
+				selectCanvasRegisteredModel(hc)
+			}
 		})
 	}()
 }

@@ -8,9 +8,11 @@ OMP chat separates the thoughts it records from tool calls and their results. To
 
 ## Agent controls
 
-**Model / provider** in the Canvas agent's composer selects a model before starting a conversation or switches an idle session. For OMP, the connected host runs `omp models --json` in the session's folder (or the canvas agent's folder before starting). Provider and model dropdowns offer only that CLI registry's chat models; **Refresh models** reads configuration changes. Loading errors and empty catalogs keep Apply disabled. **Browse in Terminal** opens OMP's own picker for an idle session. Finish the current task before applying a change. Only model identifiers and display names cross the protocol; provider credentials stay on the host.
+The **Provider** and **Model** dropdowns appear directly in OMP's Canvas composer. The connected host runs `omp models --json` in the session's folder (or the canvas agent's folder before starting). The dropdowns offer only that registry's chat models; the refresh icon reads configuration changes. Selecting a model configures the next conversation or switches an idle session. Finish the current task before changing it. Only model identifiers and display names cross the protocol; provider credentials stay on the host.
 
 Recorded **Thinking / Thoughts** has its own visible preview and expandable details, independent of the folded tool history.
+
+While working, recorded thoughts stay open and newest first; **Running tools** distinguishes pending calls from the thinking phase. Only thoughts recorded by OMP appear. Slash commands show common OMP commands immediately, then add the CLI's discovered commands, skills and extensions in the background, even before a conversation starts.
 
 The activity pill inside the Canvas follows the session's Working and Needs input states, including time spent thinking or running tools before the first canvas edit.
 

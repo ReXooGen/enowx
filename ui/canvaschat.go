@@ -147,10 +147,11 @@ func (a *App) canvasAssistant(c *ui.Context, cv proto.Canvas) {
 	case chatview.Supported(s) && !hc.terminal:
 		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 			a.chatViewSending(c.Key("chat:"+s.ID), s, shown, chatTweaks{
-				send:        func(text string, files []string) { a.canvasSend(cv.ID, s, text, files) },
-				paste:       func(ch *chatview.Chat, text string) bool { return a.canvasPaste(cv.ID, ch, text) },
-				showUser:    canvas.WithoutContext,
-				chooseModel: a.canvasChooseModel(cv.ID, agentID),
+				send:          func(text string, files []string) { a.canvasSend(cv.ID, s, text, files) },
+				paste:         func(ch *chatview.Chat, text string) bool { return a.canvasPaste(cv.ID, ch, text) },
+				showUser:      canvas.WithoutContext,
+				chooseModel:   a.canvasChooseModel(cv.ID, agentID),
+				modelControls: a.canvasInlineModels(cv.ID, agentID, s, true),
 			})
 		})
 	case p != nil:
@@ -230,12 +231,28 @@ var canvasSuggestions = []notesSuggestion{
 func (a *App) canvasStart(c *ui.Context, cv proto.Canvas, agentID string) {
 	ch := a.chatOf("canvas-new:" + cv.ID + ":" + agentID)
 	ch.View(c, chatview.Options{
-		Agent:       agentID,
-		AgentName:   a.agentName(agentID),
-		Fresh:       true,
-		ChooseModel: a.canvasChooseModel(cv.ID, agentID),
-		Send:        func(text string, files []string) { a.canvasAsk(cv, agentID, text, files) },
-		Paste:       func(text string) bool { return a.canvasPaste(cv.ID, ch, text) },
+		Agent:         agentID,
+		AgentName:     a.agentName(agentID),
+		Fresh:         true,
+		ChooseModel:   a.canvasChooseModel(cv.ID, agentID),
+		ModelControls: a.canvasInlineModels(cv.ID, agentID, proto.SessionInfo{}, false),
+		LoadCommands: func(done func(proto.AgentCommands, error)) {
+			cl, generation := a.client, a.gen
+			if cl == nil {
+				done(proto.AgentCommands{}, nil)
+				return
+			}
+			go func() {
+				list, err := cl.AgentCommands(proto.AgentModelsParams{Agent: agentID, Canvas: cv.ID})
+				a.onMain(func() {
+					if generation == a.gen {
+						done(list, err)
+					}
+				})
+			}()
+		},
+		Send:  func(text string, files []string) { a.canvasAsk(cv, agentID, text, files) },
+		Paste: func(text string) bool { return a.canvasPaste(cv.ID, ch, text) },
 		Set: func(setting, id string) {
 			switch setting {
 			case "model":

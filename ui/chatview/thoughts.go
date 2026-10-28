@@ -13,11 +13,17 @@ import (
 
 // Recorded thoughts remain visible independently of the tool history. A short
 // preview avoids an empty turn without flooding it with long reasoning blocks.
-func (ch *Chat) thoughts(c *ui.Context, entries []proto.TranscriptEntry, running bool) {
+func (ch *Chat) thoughts(c *ui.Context, entries []proto.TranscriptEntry, thinking, working bool) {
 	key := entries[0].Index
-	open := ch.open[key]
+	if ch.thoughtOpen == nil {
+		ch.thoughtOpen = map[int]bool{}
+	}
+	open, set := ch.thoughtOpen[key]
+	if !set {
+		open = working
+	}
 	title := "Thoughts"
-	if running {
+	if thinking {
 		title = "Thinking"
 	}
 	var duration int64
@@ -29,6 +35,9 @@ func (ch *Chat) thoughts(c *ui.Context, entries []proto.TranscriptEntry, running
 		head.Children(func() {
 			ui.Icon(c, icon.Brain).FontSize(13).TextColor(theme.Accent)
 			ui.Text(c, title).FontSize(12).FontWeight(600).TextColor(theme.TextSoft)
+			if working && !thinking {
+				ui.Text(c, "Running tools").FontSize(11).TextColor(theme.Muted)
+			}
 			if len(entries) > 1 {
 				ui.Text(c, fmt.Sprintf("%d entries", len(entries))).FontSize(11).TextColor(theme.Muted)
 			}
@@ -43,12 +52,13 @@ func (ch *Chat) thoughts(c *ui.Context, entries []proto.TranscriptEntry, running
 			ui.Icon(c, chevron).FontSize(11).TextColor(theme.Muted)
 		})
 		if head.Clicked() {
-			ch.open[key] = !open
+			ch.thoughtOpen[key] = !open
 		}
 		if open {
 			ui.Scroll(c).FillWidth().MaxHeight(200).Children(func() {
 				ui.Column(c).FillWidth().Gap(8).Children(func() {
-					for _, entry := range entries {
+					for i := len(entries) - 1; i >= 0; i-- {
+						entry := entries[i]
 						ui.Text(c.Key(entry.Index), entry.Text).FontSize(12).TextColor(theme.Muted).Selectable()
 					}
 				})

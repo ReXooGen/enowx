@@ -3,6 +3,9 @@ package proto
 // MethodAgentModels reads an agent's model catalog on its host.
 const MethodAgentModels = "agent.models"
 
+// MethodAgentCommands reads commands before a session has been started.
+const MethodAgentCommands = "agent.commands"
+
 // AgentModelsParams selects the same agent and folder as a session or canvas.
 type AgentModelsParams struct {
 	Agent   string `json:"agent"`

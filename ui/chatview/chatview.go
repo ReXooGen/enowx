@@ -83,15 +83,17 @@ type Chat struct {
 	showUser func(string) string
 	// The agent's slash commands, once its daemon has read them, and the
 	// slash menu: the command highlighted, and the input it was closed on.
-	commands     []proto.AgentCommand
-	commandsRead bool
-	slashPick    int
-	slashClosed  string
+	commands        []proto.AgentCommand
+	commandsRead    bool
+	commandsStarted bool
+	slashPick       int
+	slashClosed     string
 	// focus gives the composer the keyboard focus on the next frame, after
 	// anything that took it away: a send, a menu, a button.
-	focus bool
-	open  map[int]bool      // turns, thoughts and tool calls opened or closed, by entry index
-	links widget.LinkOpener // Options.OpenLink, as the last frame gave it
+	focus       bool
+	open        map[int]bool      // turns, thoughts and tool calls opened or closed, by entry index
+	thoughtOpen map[int]bool      // separate from tool history, including paged turns without a prompt
+	links       widget.LinkOpener // Options.OpenLink, as the last frame gave it
 	// editable says the user's messages offer to edit them, as of the last
 	// frame; editing is the one being edited in the composer.
 	editable bool
@@ -147,6 +149,7 @@ func (ch *Chat) Follow(cl *client.Client, id string, update func(func()), wanted
 					update(func() { ch.commands, ch.commandsRead = list.Commands, true })
 				} else if err != nil {
 					commandsRead = true // an older daemon: no list
+					update(func() { ch.commandsRead = true })
 				}
 			}
 			// Tail also bounds the answer when the transcript starts over.
@@ -222,6 +225,7 @@ func (ch *Chat) apply(t proto.Transcript) {
 	ch.loaded, ch.supported, ch.reason = true, t.Supported, t.Reason
 	if t.Reset {
 		ch.entries, ch.base, ch.open = nil, 0, map[int]bool{}
+		ch.thoughtOpen = nil
 		first = true
 	}
 	if len(ch.entries) == 0 && len(t.Entries) > 0 {
@@ -304,6 +308,10 @@ type Options struct {
 	Set func(setting, id string)
 	// ChooseModel opens the host's provider/model controls, when available.
 	ChooseModel func()
+	// ModelControls draws host-backed provider/model dropdowns in the composer.
+	ModelControls func(*ui.Context)
+	// LoadCommands discovers commands before a session exists; callbacks run on main.
+	LoadCommands func(func(proto.AgentCommands, error))
 	// Paste sees a paste into the composer, with the clipboard's text ("" for
 	// an image or files), and reports whether it took it: the app attaches
 	// an image or files with Attach.
@@ -338,6 +346,24 @@ type Options struct {
 // View draws the chat: the conversation, a list of its turns in a
 // centered column that follows its end, and the composer under it.
 func (ch *Chat) View(c *ui.Context, o Options) {
+	if !ch.commandsStarted {
+		ch.commandsStarted = true
+		if seed := agent.ImmediateCommands(o.Agent); len(ch.commands) == 0 && len(seed) > 0 {
+			ch.commands = seed
+			ch.commandsRead = true
+		}
+		if o.Fresh {
+			ch.commandsRead = true
+			if o.LoadCommands != nil {
+				o.LoadCommands(func(list proto.AgentCommands, err error) {
+					if err == nil {
+						ch.commands = list.Commands
+					}
+					ch.commandsRead = true
+				})
+			}
+		}
+	}
 	ch.links = o.OpenLink
 	ch.showUser = o.ShowUser
 	ch.editable = o.Edit != nil && agent.CanRewind(o.Agent) && !o.Ended

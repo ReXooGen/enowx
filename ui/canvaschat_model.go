@@ -11,6 +11,9 @@ import (
 )
 
 func (a *App) canvasChooseModel(canvasID, agentID string) func() {
+	if agentID == "omp" {
+		return nil
+	}
 	if len(agent.SettingsOf(agentID).ModelFlag) == 0 {
 		return nil
 	}

@@ -138,15 +138,21 @@ func (v *View) stage(c *ui.Context, o Options) {
 			if !drawing {
 				v.gridGuides(c, o, f, s)
 			}
+			for _, el := range f.Elements {
+				if el.Type == proto.ShapeLine || el.Type == proto.ShapeArrow {
+					continue
+				}
+				v.shape(c.Key(el.ID), o, el, s, now)
+			}
+			// A variation may use a full-frame rectangle as its sheet. Draw
+			// connectors after shapes so that sheet cannot cover every arrow.
 			if !browser {
 				v.arrows(c, f, s)
 			}
 			for _, el := range f.Elements {
 				if el.Type == proto.ShapeLine || el.Type == proto.ShapeArrow {
 					v.arrowHandle(c.Key(el.ID), o, f, el, s)
-					continue
 				}
-				v.shape(c.Key(el.ID), o, el, s, now)
 			}
 			if drawing {
 				v.gridGuides(c, o, f, s)

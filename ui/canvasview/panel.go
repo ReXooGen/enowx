@@ -20,7 +20,7 @@ import (
 func (v *View) sidePanel(c *ui.Context, o Options) {
 	ui.Column(c.Key("canvas-panel")).Width(300).Shrink(0).FillHeight().Background(theme.Panel).BorderWidth(0, 0, 0, 1).BorderColor(theme.Border).
 		Transition(widget.PanelMotion(16)).Children(func() {
-		titles := map[string]string{"layers": "Layers", "comments": "Comments", "versions": "Versions", "grid": "Layout grid"}
+		titles := map[string]string{"layers": "Layers", "comments": "Comments", "versions": "Versions", "grid": "Layout grid", "workflow": "Canvas tools"}
 		ui.Row(c).FillWidth().Height(40).Shrink(0).PaddingX(12).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
 			ui.Text(c, titles[v.panel]).FontSize(12.5).FontWeight(600).Grow(1)
 			if widget.IconButton(c, icon.Close, "Close panel", false).Clicked() {
@@ -30,6 +30,8 @@ func (v *View) sidePanel(c *ui.Context, o Options) {
 		ui.Scroll(c).Grow(1).FillWidth().Children(func() {
 			ui.Column(c).FillWidth().Padding(10).Gap(8).Children(func() {
 				switch v.panel {
+				case "workflow":
+					v.workflowPanel(c, o)
 				case "layers":
 					v.layers(c, o)
 				case "comments":
@@ -56,7 +58,7 @@ func (v *View) layers(c *ui.Context, o Options) {
 		r := ui.ButtonBase(c.Key(key)).FillWidth().Height(26).Padding(0, 6, 0, 6+float32(depth)*12).Gap(6).Radius(5).AlignItems(ui.Center).
 			Cursor(ui.CursorPointer).Label("Layer " + id)
 		switch {
-		case v.sel == id:
+		case v.sel == id || v.chosen[id]:
 			r.Background(theme.Selected)
 		case v.recent(id):
 			r.Background(theme.AccentSoft)
@@ -64,7 +66,7 @@ func (v *View) layers(c *ui.Context, o Options) {
 			r.Background(theme.Hover)
 		}
 		if r.Clicked() {
-			v.sel = id
+			v.chooseShape(id, r.ClickModifiers()&ui.Shift != 0)
 			if o.Web != nil {
 				o.Web.outline(id)
 			}

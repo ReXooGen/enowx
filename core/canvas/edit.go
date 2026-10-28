@@ -23,6 +23,17 @@ func (s *Store) Edit(e proto.CanvasEdit) (c proto.Canvas, frame, element string,
 	if e.Session != "" {
 		c.Agent, c.AgentAt = e.Session, time.Now().UTC()
 	}
+	if e.Op == proto.CanvasOpReview {
+		if e.Session != "" {
+			return c, "", "", fmt.Errorf("canvas: review decisions must come from the user")
+		}
+		frame, element, err = s.reviewElement(&c, e)
+		if err != nil {
+			return c, "", "", err
+		}
+		err = s.commit(&c, proto.CanvasVersion{Op: e.Op, Frame: frame, Element: element, Session: e.Session})
+		return
+	}
 	if frame, element, err = apply(&c, e); err != nil {
 		return c, "", "", err
 	}
@@ -83,6 +94,10 @@ func apply(c *proto.Canvas, e proto.CanvasEdit) (frame, element string, err erro
 	f := &c.Frames[i]
 	frame = f.ID
 	switch e.Op {
+	case proto.CanvasOpBatch:
+		err = batchElements(f, e)
+	case proto.CanvasOpTransition:
+		err = setTransition(c, f, e)
 	case proto.CanvasOpFrameSet:
 		if e.FrameInfo == nil {
 			return "", "", errors.New("canvas: frame.set takes the frame's name, size or background")
@@ -104,7 +119,11 @@ func apply(c *proto.Canvas, e proto.CanvasEdit) (frame, element string, err erro
 		if c.Winner == f.ID {
 			c.Winner = ""
 		}
+		id, name := f.ID, f.Name
 		c.Frames = slices.Delete(c.Frames, i, i+1)
+		for j := range c.Frames {
+			c.Frames[j].Transitions = slices.DeleteFunc(c.Frames[j].Transitions, func(t proto.CanvasTransition) bool { return t.Target == id || t.Target == name })
+		}
 	case proto.CanvasOpFrameMeta:
 		setDesign(f, e)
 	case proto.CanvasOpFrameGrid:
@@ -170,6 +189,9 @@ func apply(c *proto.Canvas, e proto.CanvasEdit) (frame, element string, err erro
 		}
 		snapShape(*f, &el)
 		if j := slices.IndexFunc(f.Elements, func(x proto.CanvasElement) bool { return x.ID == el.ID }); j >= 0 {
+			if f.Elements[j].Locked && f.Elements[j] != el {
+				return "", "", fmt.Errorf("canvas: element %s is locked", el.ID)
+			}
 			f.Elements[j] = el
 		} else {
 			f.Elements = append(f.Elements, el)
@@ -179,6 +201,9 @@ func apply(c *proto.Canvas, e proto.CanvasEdit) (frame, element string, err erro
 		j := slices.IndexFunc(f.Elements, func(x proto.CanvasElement) bool { return x.ID == e.Target })
 		if j < 0 {
 			return "", "", fmt.Errorf("canvas: no element %q in frame %s", e.Target, f.Name)
+		}
+		if f.Elements[j].Locked {
+			return "", "", fmt.Errorf("canvas: element %s is locked", e.Target)
 		}
 		f.Elements = slices.Delete(f.Elements, j, j+1)
 		// Arrows to it go with it.

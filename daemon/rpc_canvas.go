@@ -7,6 +7,7 @@ import (
 )
 
 var canvasHandlers = map[string]handler{
+	proto.MethodCanvasLibrary: with(canvasLibraryHandler),
 	proto.MethodCanvasShare: with(func(c *conn, p proto.CanvasShareParams) (any, error) {
 		return c.srv.shareCanvas(p)
 	}),

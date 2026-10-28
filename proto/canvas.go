@@ -79,7 +79,8 @@ type CanvasInfo struct {
 // device's sizes.
 type Canvas struct {
 	CanvasInfo
-	Frames []CanvasFrame `json:"frames"`
+	Frames  []CanvasFrame         `json:"frames"`
+	Reviews []CanvasElementReview `json:"reviews,omitempty"`
 }
 
 // CanvasFrame is a design of a canvas, Width×Height: a page, a variant of
@@ -100,9 +101,10 @@ type CanvasFrame struct {
 	Favorite bool   `json:"favorite,omitempty"`
 	// Grid is the design's layout grid: its columns, rows, gaps and named
 	// areas, shown as guides, which shapes snap to and CSS comes from.
-	Grid     *CanvasGrid     `json:"grid,omitempty"`
-	HTML     string          `json:"html,omitempty"`
-	Elements []CanvasElement `json:"elements,omitempty"`
+	Grid        *CanvasGrid        `json:"grid,omitempty"`
+	HTML        string             `json:"html,omitempty"`
+	Elements    []CanvasElement    `json:"elements,omitempty"`
+	Transitions []CanvasTransition `json:"transitions,omitempty"`
 }
 
 // Shapes of a frame's elements.
@@ -121,6 +123,8 @@ const (
 // goes from element From to element To, or from (X, Y) to (X+W, Y+H)
 // without them. Src is an image's asset (CanvasAsset.Name) or URL.
 type CanvasElement struct {
+	Group       string  `json:"group,omitempty"`
+	Locked      bool    `json:"locked,omitempty"`
 	ID          string  `json:"id"`
 	Type        string  `json:"type"`
 	X           float64 `json:"x"`
@@ -185,18 +189,24 @@ const (
 // CanvasEdit is a change to canvas ID's frame Frame (its ID or name, ""
 // for the first), made by the agent of Session, or by the user ("").
 type CanvasEdit struct {
-	ID        string         `json:"id"`
-	Op        string         `json:"op"`
-	Frame     string         `json:"frame,omitempty"`
-	Target    string         `json:"target,omitempty"`
-	Into      string         `json:"into,omitempty"`
-	HTML      string         `json:"html,omitempty"`
-	Element   *CanvasElement `json:"element,omitempty"`
-	FrameInfo *CanvasFrame   `json:"frameInfo,omitempty"`
-	Title     *string        `json:"title,omitempty"`
-	Kind      *string        `json:"kind,omitempty"`
-	Group     *string        `json:"group,omitempty"`
-	Projects  *[]string      `json:"projects,omitempty"`
+	Targets    []string             `json:"targets,omitempty"`
+	Action     string               `json:"action,omitempty"`
+	DX         float64              `json:"dx,omitempty"`
+	DY         float64              `json:"dy,omitempty"`
+	Review     *CanvasElementReview `json:"review,omitempty"`
+	Transition *CanvasTransition    `json:"transition,omitempty"`
+	ID         string               `json:"id"`
+	Op         string               `json:"op"`
+	Frame      string               `json:"frame,omitempty"`
+	Target     string               `json:"target,omitempty"`
+	Into       string               `json:"into,omitempty"`
+	HTML       string               `json:"html,omitempty"`
+	Element    *CanvasElement       `json:"element,omitempty"`
+	FrameInfo  *CanvasFrame         `json:"frameInfo,omitempty"`
+	Title      *string              `json:"title,omitempty"`
+	Kind       *string              `json:"kind,omitempty"`
+	Group      *string              `json:"group,omitempty"`
+	Projects   *[]string            `json:"projects,omitempty"`
 	// What frame.meta and frame.copy set of a design.
 	Name        *string     `json:"name,omitempty"`
 	Description *string     `json:"description,omitempty"`

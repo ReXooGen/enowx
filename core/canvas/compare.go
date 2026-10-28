@@ -12,6 +12,7 @@ import (
 // Added, Removed or Changed, in frame Frame (its name), element Element
 // ("" for the frame itself).
 type Change struct {
+	FrameID string
 	Kind    string // "added", "removed", "changed"
 	Frame   string
 	Element string
@@ -39,7 +40,11 @@ func Compare(a, b proto.Canvas) []Change {
 			out = append(out, Change{Kind: "added", Frame: fb.Name})
 			continue
 		}
-		out = append(out, compareFrame(a.Frames[i], fb)...)
+		changes := compareFrame(a.Frames[i], fb)
+		for j := range changes {
+			changes[j].FrameID = fb.ID
+		}
+		out = append(out, changes...)
 	}
 	for _, fa := range a.Frames {
 		if !slices.ContainsFunc(b.Frames, func(f proto.CanvasFrame) bool { return f.ID == fa.ID }) {

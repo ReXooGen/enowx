@@ -2,6 +2,10 @@
 
 Each version's section is also what the app's update dialog shows.
 
+## Unreleased
+
+- **Canvas workflow:** reusable linked HTML components, per-element version review, layout and readability checks at three preview widths, shape selection and arrangement, click/hover prototype transitions, and self-contained offline HTML exports. See [Canvas workflow](docs/canvas-workflow.md) for controls and export limits.
+
 ## 0.3.1
 
 - **Light and System appearance:** choose Dark, Light or System in Settings → Appearance; every palette has a light variant, your palette and accent are kept, and terminals stay dark. Until you pick one, web pages follow your device as before. Text on a custom accent now takes black or white, whichever reads better.

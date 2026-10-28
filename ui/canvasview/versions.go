@@ -16,6 +16,7 @@ import (
 // compareState is a version compared with the one shown.
 type compareState struct {
 	n       int
+	head    int
 	changes []canvas.Change
 }
 
@@ -109,7 +110,7 @@ func (v *View) compareWith(o Options, n int) {
 			v.err = err.Error()
 			return
 		}
-		v.compare = &compareState{n: n, changes: canvas.Compare(old, cur)}
+		v.compare = &compareState{n: n, head: cur.Version, changes: canvas.Compare(old, cur)}
 	})
 }
 

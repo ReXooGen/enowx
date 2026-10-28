@@ -155,6 +155,20 @@ func (s *Server) canvasRender(p proto.CanvasRenderParams) (proto.CanvasRendered,
 	}
 	assets := func(name string) ([]byte, error) { return s.canvases.Asset(c.ID, name) }
 	format := p.Format
+	if format == "offline-html" {
+		var source string
+		if p.Frame == "" {
+			source = canvas.Standalone(c, assets)
+		} else {
+			f, err := renderFrame(c, p.Frame)
+			if err != nil {
+				return proto.CanvasRendered{}, err
+			}
+			source = canvas.FrameDocument(f, assets)
+		}
+		data, err := canvas.OfflineDocument(source, canvas.PublicAssets())
+		return proto.CanvasRendered{Format: "html", Data: []byte(data), By: "daemon"}, err
+	}
 	if format == "" {
 		format = proto.RenderPNG
 	}

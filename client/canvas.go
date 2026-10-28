@@ -2,6 +2,13 @@ package client
 
 import "github.com/enowx/enowx/proto"
 
+// CanvasLibrary reads or changes the host's reusable component library.
+func (c *Client) CanvasLibrary(p proto.CanvasLibraryParams) (proto.CanvasLibraryResult, error) {
+	var result proto.CanvasLibraryResult
+	err := c.Call(proto.MethodCanvasLibrary, p, &result)
+	return result, err
+}
+
 // Canvases lists the host's canvases, the latest changed first.
 func (c *Client) Canvases() ([]proto.CanvasInfo, error) {
 	var list []proto.CanvasInfo

@@ -21,6 +21,17 @@ func (v *View) toolbar(c *ui.Context, o Options, cv proto.Canvas) {
 	narrow := v.stageRoom() < 620
 	ui.Row(c).FillWidth().Height(40).Shrink(0).PaddingX(12).Gap(6).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
 		v.designNav(c, o, cv)
+		if strings.TrimSpace(f.HTML) == "" && widget.IconButton(c.Key("interact-shapes"), icon.Play, "Interact with shapes", v.mode == modeInteract).Clicked() {
+			v.mode = 1 - v.mode
+		}
+		if widget.IconButton(c.Key("workflow"), icon.Settings, "Canvas tools", v.panel == "workflow").Clicked() {
+			if v.panel == "workflow" {
+				v.panel = ""
+			} else {
+				v.panel = "workflow"
+				v.openWorkflow(o)
+			}
+		}
 		if cv.Kind == proto.CanvasMockup || strings.TrimSpace(f.HTML) != "" {
 			var ins ui.Element
 			if narrow {
@@ -162,6 +173,15 @@ func shapeOf(f proto.CanvasFrame, id string) (proto.CanvasElement, bool) {
 
 // keys are the page's shortcuts: undo, redo, delete the selection.
 func (v *View) keys(c *ui.Context, o Options) {
+	if v.mode == modeDesign && c.Shortcut(ui.Cmd, ui.KeyA) {
+		v.selectAllShapes()
+	}
+	if v.mode == modeDesign && c.Shortcut(ui.Cmd, ui.KeyG) {
+		v.batch(o, "group")
+	}
+	if v.mode == modeDesign && c.Shortcut(ui.Cmd|ui.Shift, ui.KeyG) {
+		v.batch(o, "ungroup")
+	}
 	if c.Shortcut(ui.Cmd, ui.KeyZ) {
 		v.undo(o, false)
 	}
@@ -169,7 +189,11 @@ func (v *View) keys(c *ui.Context, o Options) {
 		v.undo(o, true)
 	}
 	if v.editing == nil && v.sel != "" && v.mode == modeDesign && (c.Shortcut(0, ui.KeyDelete) || c.Shortcut(0, ui.KeyBackspace)) {
-		v.remove(o, v.sel)
+		if len(v.selectedShapes()) > 1 {
+			v.batch(o, "delete")
+		} else {
+			v.remove(o, v.sel)
+		}
 	}
 	if v.connect != "" && c.Shortcut(0, ui.KeyEscape) {
 		v.connect = ""

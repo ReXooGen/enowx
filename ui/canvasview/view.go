@@ -20,6 +20,7 @@ import (
 // Options are what the page shows and does: the host's canvases, and
 // calls to it, whose done funcs run on the main thread.
 type Options struct {
+	Library  func(p proto.CanvasLibraryParams, done func(proto.CanvasLibraryResult, error))
 	Host     string
 	Canvases []proto.CanvasInfo
 	Loaded   bool
@@ -71,12 +72,16 @@ const (
 
 // View is the Canvas page's state. It belongs to the main thread.
 type View struct {
-	selected string
-	canvas   *proto.Canvas // the canvas open, as last read
-	loading  bool
-	err      string
-	frame    string // the frame shown: its ID
-	mode     int
+	prototype   *prototypeRun
+	workflow    *workflowState
+	chosen      map[string]bool
+	chosenFrame string
+	selected    string
+	canvas      *proto.Canvas // the canvas open, as last read
+	loading     bool
+	err         string
+	frame       string // the frame shown: its ID
+	mode        int
 	// preview shows a mockup frame at a device's width, 0 its own.
 	preview int
 	scale   float32 // the stage's zoom, as the last frame drew it
@@ -180,6 +185,7 @@ func (v *View) Open(o Options, id string) {
 		return
 	}
 	v.selected, v.canvas, v.sel, v.frame, v.history, v.compare, v.agentFrame = id, nil, "", "", nil, nil, ""
+	v.chosen, v.prototype = nil, nil
 	v.loading = true
 	o.Load(id, func(c proto.Canvas, err error) {
 		v.loading = false

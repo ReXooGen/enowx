@@ -126,6 +126,10 @@ func (a *App) canvasOptions() canvasview.Options {
 		call(func() (err error) { cv, err = fn(); return err }, func(err error) { done(cv, err) })
 	}
 	return canvasview.Options{
+		Library: func(p proto.CanvasLibraryParams, done func(proto.CanvasLibraryResult, error)) {
+			var result proto.CanvasLibraryResult
+			call(func() (err error) { result, err = cl.CanvasLibrary(p); return err }, func(err error) { done(result, err) })
+		},
 		Host:     a.host.Name,
 		Canvases: hc.list,
 		Loaded:   hc.loaded,

@@ -1,0 +1,35 @@
+# Canvas workflow
+
+Open a canvas and choose **Canvas tools** in the toolbar. The workflow panel has six sections. These controls use the host's daemon for both This PC and VPS canvases; an older daemon needs updating before it can store the new operations.
+
+## Library
+
+Select an HTML mockup element, enter a name and choose **Save selected component**. Insert a saved component into another design. **Update** replaces the saved definition from the selection and updates its linked instances across canvases on this host. Each insertion gets unique IDs, including label and accessibility references. Removing a definition keeps existing instances.
+
+Components contain one HTML root. Use inline styles or design tokens available in the destination; page-wide styles are not copied. Imported image assets are embedded when saving. The library allows up to 2 MB per component and 8 MB in total. Updates are versioned so each affected canvas can be undone separately.
+
+## Review
+
+Choose **Compare** on an older version, then open **Review**. Keep or reject a listed element without restoring the entire canvas. Decisions are recorded. A rejection restores only that element; edits to other elements stay. If the element changed after the compared version, compare again. Agents cannot submit review decisions. Frame-wide changes without an element ID still use the existing version controls.
+
+## Checks
+
+Choose **Check this design** to inspect shape geometry and mockup layouts at 1440, 768 and 390 px. Findings cover overflow, clipped text, text contrast, small controls and overlapping interactive controls. Select a finding to locate its element.
+
+These are heuristics, not an accessibility certification. Decorative overlaps, image backgrounds and dynamic states need manual review. Preview copies do not execute scripts; generated markup and current styles are inspected. Checks examine at most 2,000 nodes per preview and report up to 150 findings.
+
+## Arrange
+
+Shift-click shapes to select several, or use **Select all shapes** / Ctrl/⌘+A. Align edges or centers, distribute three or more shapes with equal gaps, group, ungroup, lock or unlock. Dragging a selection moves it together in one undoable edit. Grouped shapes select together. Ctrl/⌘+G groups; Ctrl/⌘+Shift+G ungroups. Locked shapes must be unlocked before changing or deleting them. These operations apply to native shapes; HTML elements retain their existing single-element editor.
+
+## Motion
+
+Select a shape or HTML element, choose a target design, click or hover, none/fade/slide, easing and a duration from 0–3000 ms. Choose **Apply transition**, then switch to **Interact** to try it. Export all designs to preserve navigation between them. HTML previews respect the device's reduced-motion preference. An individual design export has no other designs to navigate to.
+
+## Offline
+
+Export this design or all designs as a single HTML file. Imported assets, public images, fonts, CSS and classic scripts are embedded. The host downloads public HTTP(S) resources without credentials; private resources must first be imported as canvas assets. The exported page blocks runtime network requests.
+
+JavaScript modules, responsive `srcset`, layered CSS imports and runtime APIs need a project build; unsupported resources produce an error instead of a partial export. Limits are 96 downloads, 4 MB per resource, 6 MB total downloaded assets and 8 MB final HTML. Larger designs should be exported from their project.
+
+Agents can use `canvas_library` and `canvas_workflow_edit` through the existing Canvas feature switch. The CLI equivalents are `enowx-app canvas library --json SETTINGS`, `canvas workflow CANVAS --json EDIT` and `canvas export CANVAS --format offline-html --out preview.html`.

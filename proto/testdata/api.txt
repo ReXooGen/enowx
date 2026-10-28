@@ -240,6 +240,7 @@ field BrowserResult.text string
 field BrowserResult.title string
 field BrowserResult.url string
 field Canvas.frames []CanvasFrame
+field Canvas.reviews []CanvasElementReview
 field CanvasAsset.data []byte
 field CanvasAsset.id string
 field CanvasAsset.name string
@@ -289,8 +290,11 @@ field CanvasCreateParams.group string
 field CanvasCreateParams.kind string
 field CanvasCreateParams.projects []string
 field CanvasCreateParams.title string
+field CanvasEdit.action string
 field CanvasEdit.before string
 field CanvasEdit.description *string
+field CanvasEdit.dx float64
+field CanvasEdit.dy float64
 field CanvasEdit.element *CanvasElement
 field CanvasEdit.favorite *bool
 field CanvasEdit.frame string
@@ -305,9 +309,12 @@ field CanvasEdit.name *string
 field CanvasEdit.op string
 field CanvasEdit.page *string
 field CanvasEdit.projects *[]string
+field CanvasEdit.review *CanvasElementReview
 field CanvasEdit.session string
 field CanvasEdit.target string
+field CanvasEdit.targets []string
 field CanvasEdit.title *string
+field CanvasEdit.transition *CanvasTransition
 field CanvasEdit.variant *string
 field CanvasElement.align string
 field CanvasElement.bold bool
@@ -315,8 +322,10 @@ field CanvasElement.color string
 field CanvasElement.fill string
 field CanvasElement.fontSize float64
 field CanvasElement.from string
+field CanvasElement.group string
 field CanvasElement.h float64
 field CanvasElement.id string
+field CanvasElement.locked bool
 field CanvasElement.radius float64
 field CanvasElement.src string
 field CanvasElement.stroke string
@@ -327,6 +336,11 @@ field CanvasElement.type string
 field CanvasElement.w float64
 field CanvasElement.x float64
 field CanvasElement.y float64
+field CanvasElementReview.base int
+field CanvasElementReview.decision string
+field CanvasElementReview.element string
+field CanvasElementReview.frame string
+field CanvasElementReview.head int
 field CanvasFrame.background string
 field CanvasFrame.description string
 field CanvasFrame.elements []CanvasElement
@@ -337,6 +351,7 @@ field CanvasFrame.html string
 field CanvasFrame.id string
 field CanvasFrame.name string
 field CanvasFrame.page string
+field CanvasFrame.transitions []CanvasTransition
 field CanvasFrame.variant string
 field CanvasFrame.width int
 field CanvasGrid.areas []GridArea
@@ -360,6 +375,19 @@ field CanvasInfo.title string
 field CanvasInfo.updated time.Time
 field CanvasInfo.version int
 field CanvasInfo.winner string
+field CanvasLibraryComponent.html string
+field CanvasLibraryComponent.id string
+field CanvasLibraryComponent.name string
+field CanvasLibraryComponent.updated time.Time
+field CanvasLibraryParams.canvas string
+field CanvasLibraryParams.component CanvasLibraryComponent
+field CanvasLibraryParams.frame string
+field CanvasLibraryParams.into string
+field CanvasLibraryParams.op string
+field CanvasLibraryParams.session string
+field CanvasLibraryParams.target string
+field CanvasLibraryResult.canvases []Canvas
+field CanvasLibraryResult.components []CanvasLibraryComponent
 field CanvasRef.id string
 field CanvasRenderParams.format string
 field CanvasRenderParams.frame string
@@ -386,6 +414,12 @@ field CanvasShare.token string
 field CanvasShare.urls []string
 field CanvasShareParams.id string
 field CanvasShareParams.stop bool
+field CanvasTransition.duration int
+field CanvasTransition.easing string
+field CanvasTransition.effect string
+field CanvasTransition.element string
+field CanvasTransition.target string
+field CanvasTransition.trigger string
 field CanvasVersion.element string
 field CanvasVersion.frame string
 field CanvasVersion.n int
@@ -1664,6 +1698,7 @@ method canvas.delete
 method canvas.edit
 method canvas.get
 method canvas.history
+method canvas.library
 method canvas.list
 method canvas.redo
 method canvas.render
@@ -1923,6 +1958,7 @@ value CanvasCommentResolve=resolve
 value CanvasCompare=compare
 value CanvasDiagram=diagram
 value CanvasMockup=mockup
+value CanvasOpBatch=elements.batch
 value CanvasOpElementDel=el.remove
 value CanvasOpElementSet=el.set
 value CanvasOpFrameAdd=frame.add
@@ -1938,6 +1974,8 @@ value CanvasOpHTMLSet=html.set
 value CanvasOpHTMLText=html.text
 value CanvasOpMeta=meta
 value CanvasOpPick=pick
+value CanvasOpReview=element.review
+value CanvasOpTransition=frame.transition
 value CanvasOpen=open
 value CanvasPause=pause
 value CanvasResume=resume

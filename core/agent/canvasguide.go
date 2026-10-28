@@ -7,6 +7,8 @@ const CanvasGuide = `# Designing on an enowX canvas
 
 A canvas is a mockup of a UI (HTML and CSS), a wireframe, a diagram or a free board, kept on this host and shown live in the user's enowX app (Canvas page): they watch each element appear as you write it, comment on elements, edit them, pause or stop you. Work an element at a time, so they see the design build up and their changes to other elements stay.
 
+Canvas workflow tools: canvas_library lists, saves and inserts reusable HTML components on this host; updating a component refreshes its linked instances. Keep styles inline or use destination design tokens. canvas_workflow_edit makes one undoable elements.batch edit (targets plus action: move with dx/dy, left/right/top/bottom/center-x/center-y, distribute-x/distribute-y, group/ungroup, lock/unlock), or a frame.transition (transition: element, target design, trigger click/hover, effect none/fade/slide, duration 0–3000 milliseconds, easing ease/ease-in/ease-out/ease-in-out/linear). Respect locked shapes and paused canvases. Per-element keep/reject decisions belong to the user; never approve your own changes. The Canvas tools panel also offers design checks and an offline HTML export; do not claim browser checks passed unless the user ran them or you verified the corresponding output.
+
 ## Start
     "$ENOWX_BIN" canvas new "Checkout" --kind mockup --frame desktop --frame mobile   # prints its ID
     "$ENOWX_BIN" canvas open ID          # shows it in the app: do this first, so the user watches

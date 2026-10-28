@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -43,6 +44,7 @@ type Web struct {
 	making  bool
 	shown   string // canvas/frame/version loaded
 	html    string // the frame's HTML loaded, its shapes left out
+	motion  []proto.CanvasTransition
 	pending string // the frame's document, loaded once the page is made (compose)
 	zoom    float64
 	sel     string // the element outlined as selected
@@ -98,7 +100,7 @@ func key(c proto.Canvas, f proto.CanvasFrame) string { return c.ID + "/" + f.ID 
 
 // show loads frame f of c when it isn't the one loaded.
 func (w *Web) show(c proto.Canvas, f proto.CanvasFrame, _ *proto.Canvas) {
-	if w.shown == key(c, f) && w.html == f.HTML {
+	if w.shown == key(c, f) && w.html == f.HTML && slices.Equal(w.motion, f.Transitions) {
 		return
 	}
 	w.load(c, f)
@@ -107,8 +109,9 @@ func (w *Web) show(c proto.Canvas, f proto.CanvasFrame, _ *proto.Canvas) {
 // load loads frame f's HTML whole, its files fetched first.
 func (w *Web) load(c proto.Canvas, f proto.CanvasFrame) {
 	w.shown, w.html = key(c, f), f.HTML
+	w.motion = slices.Clone(f.Transitions)
 	names := canvas.AssetNames(f.HTML)
-	bare := proto.CanvasFrame{Width: f.Width, Height: f.Height, Background: f.Background, HTML: f.HTML}
+	bare := proto.CanvasFrame{Width: f.Width, Height: f.Height, Background: f.Background, HTML: f.HTML, Transitions: f.Transitions}
 	if len(names) == 0 || w.Asset == nil {
 		w.setDoc(canvas.FrameDocument(bare, nil))
 		return

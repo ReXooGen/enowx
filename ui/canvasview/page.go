@@ -118,6 +118,7 @@ func (v *View) header(c *ui.Context, o Options, cv proto.Canvas) {
 				{"PNG of " + f.Name, proto.RenderPNG, f.ID}, {"SVG of " + f.Name, proto.RenderSVG, f.ID},
 				{"PDF of " + f.Name, proto.RenderPDF, f.ID}, {"HTML of " + f.Name, proto.RenderHTML, f.ID},
 				{"Share as a page (read-only HTML)…", proto.RenderHTML, ""},
+				{"Offline HTML of " + f.Name, "offline-html", f.ID},
 			} {
 				if widget.MenuItem(c.Key(e.label), icon.Download, e.label, false) {
 					v.export(o, cv, e.frame, e.format)
@@ -283,7 +284,12 @@ func (v *View) export(o Options, cv proto.Canvas, frame, format string) {
 			v.err = err.Error()
 			return
 		}
-		o.SaveFile(name+"."+format, data)
+		ext := format
+		if ext == "offline-html" {
+			ext = "html"
+			name += "-offline"
+		}
+		o.SaveFile(name+"."+ext, data)
 	})
 }
 

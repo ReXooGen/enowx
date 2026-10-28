@@ -125,7 +125,8 @@ func FrameDocument(f proto.CanvasFrame, assets Assets) string {
 	if len(f.Elements) > 0 {
 		overlay = fmt.Sprintf(`<div style="position:absolute;left:0;top:0;width:%dpx;height:%dpx;pointer-events:none;z-index:2147483647">%s</div>`, f.Width, f.Height, SVG(proto.CanvasFrame{Width: f.Width, Height: f.Height, Elements: f.Elements}, assets, false))
 	}
-	base := fmt.Sprintf(`<style>html,body{margin:0;min-height:%dpx;background:%s}body{position:relative;width:%dpx}</style>`, f.Height, attrEsc(bg), f.Width)
+	base := fmt.Sprintf(`<style data-enowx-frame-base>html,body{margin:0;min-height:%dpx;background:%s}body{position:relative;width:%dpx}</style>`, f.Height, attrEsc(bg), f.Width)
+	overlay += PrototypeScript(f)
 	page := inlineAssets(f.HTML, assets)
 	if strings.Contains(strings.ToLower(page), "</body>") {
 		i := strings.LastIndex(strings.ToLower(page), "</body>")
@@ -182,8 +183,8 @@ func Standalone(c proto.Canvas, assets Assets) string {
 		if f.Description != "" {
 			about = `<p>` + html.EscapeString(f.Description) + `</p>`
 		}
-		fmt.Fprintf(&b, `<section id="design-%d" data-name="%s"><h2>%d · %s · %d×%d</h2>%s<iframe title="%s" width="%d" height="%d" srcdoc="%s"></iframe></section>`,
-			i+1, attrEsc(f.Name), i+1, html.EscapeString(f.Name), f.Width, f.Height, about, attrEsc(f.Name), f.Width, f.Height, attrEsc(doc))
+		fmt.Fprintf(&b, `<section id="design-%d" data-name="%s" data-frame="%s"><h2>%d · %s · %d×%d</h2>%s<iframe title="%s" width="%d" height="%d" srcdoc="%s"></iframe></section>`,
+			i+1, attrEsc(f.Name), attrEsc(f.ID), i+1, html.EscapeString(f.Name), f.Width, f.Height, about, attrEsc(f.Name), f.Width, f.Height, attrEsc(doc))
 	}
 	b.WriteString(`</body></html>`)
 	return b.String()
@@ -191,4 +192,4 @@ func Standalone(c proto.Canvas, assets Assets) string {
 
 // shareGoto makes a shared page's links between designs (href="#design-2",
 // data-goto="Login") scroll to the design they name.
-const shareGoto = `<script>document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('[data-goto],a[href^="#"]');if(!a)return;var t=a.getAttribute('data-goto')||a.getAttribute('href').slice(1);var d=parent.document;var s=d.getElementById(t)||d.querySelector('[data-name="'+t+'"]');if(s){e.preventDefault();s.scrollIntoView({behavior:'smooth'})}},true)</script>`
+const shareGoto = `<script>window.__enowxNavigate=function(t,rule){var sections=Array.from(parent.document.querySelectorAll('section'));var s=sections.find(function(n){return n.id===t||n.dataset.name===t||n.dataset.frame===t});if(!s)return;var reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;s.scrollIntoView({behavior:reduced?'instant':'smooth'});var frame=s.querySelector('iframe');var body=frame&&frame.contentDocument&&frame.contentDocument.body;if(body&&rule&&rule.effect!=='none'&&!reduced){var frames=rule.effect==='slide'?[{opacity:0,transform:'translateX(18px)'},{opacity:1,transform:'translateX(0)'}]:[{opacity:0},{opacity:1}];body.animate(frames,{duration:rule.duration,easing:rule.easing})}};document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('[data-goto],a[href^="#"]');if(!a)return;var t=a.getAttribute('data-goto')||a.getAttribute('href').slice(1);e.preventDefault();window.__enowxNavigate(t)},true)</script>`

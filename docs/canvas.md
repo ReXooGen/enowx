@@ -17,6 +17,8 @@ A frame holds a mockup's HTML, its elements with `id` attributes, and shapes abo
 
 ## Designing
 
+**Canvas tools** opens the [workflow panel](canvas-workflow.md): linked components, element review, design checks, shape arrangement, prototype motion and offline exports.
+
 The stage shows the frame, scaled to fit.
 
 - In **Design** mode, a click selects a shape and a drag moves it. The corner handle resizes it, and a double click edits its text in place. Delete removes it.

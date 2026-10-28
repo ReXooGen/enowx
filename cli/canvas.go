@@ -33,7 +33,9 @@ const canvasUsage = `usage: enowx-app canvas COMMAND (CANVAS: its ID or title; F
   remove CANVAS --element E [--frame F]           remove an HTML element or a shape
   frame CANVAS add NAME [--size WxH] | set F [--name N] [--size WxH] [--background #RRGGBB] | rm F
   screenshot CANVAS FILE [--frame F|desktop|tablet|mobile]   a PNG of a frame, to look at what you made
-  export CANVAS --format png|pdf|svg|html [--frame F] [--out PATH]   (html without --frame: all of it, read-only, to share)
+  export CANVAS --format png|pdf|svg|html|offline-html [--frame F] [--out PATH]   (html without --frame: all designs)
+  library --json SETTINGS                 (host's reusable HTML components)
+  workflow CANVAS --json EDIT              (batch shape edits or prototype transitions)
   comments CANVAS [--all]          the user's comments on its elements, to work on; --all the resolved too
   comment CANVAS TEXT [--element E] [--frame F] | resolve CANVAS COMMENT
   history CANVAS | undo CANVAS | redo CANVAS | restore CANVAS N
@@ -98,6 +100,9 @@ func (r runner) canvasCmd(args []string) error {
 		return errors.New(canvasUsage)
 	}
 	cmd := args[0]
+	if cmd == "workflow" || cmd == "library" {
+		return r.canvasWorkflow(cmd, args[1:])
+	}
 	if slices.Contains(designCommands, cmd) {
 		return r.canvasDesigns(cmd, args[1:])
 	}

@@ -187,6 +187,14 @@ func (a *App) canvasOptions() canvasview.Options {
 			}
 			a.status = "Saved to " + path
 		},
+		RenderBackground: func(id, frame, format string, done func([]byte, error)) {
+			var data []byte
+			call(func() error {
+				out, err := cl.RenderCanvas(proto.CanvasRenderParams{ID: id, Frame: frame, Format: format, BackgroundOnly: true})
+				data = out.Data
+				return err
+			}, func(err error) { done(data, err) })
+		},
 		Projects: a.projects,
 		MakeCode: a.makeCode,
 		Share: func(id string, stop bool, done func(proto.CanvasShare, error)) {
@@ -194,8 +202,20 @@ func (a *App) canvasOptions() canvasview.Options {
 			call(func() (err error) { x, err = cl.ShareCanvas(id, stop); return err }, func(err error) { done(x, err) })
 		},
 		AgentName: a.sessionAgentName,
-		Web:       a.canvases.WebOf(a.canvasWeb),
-		CanAsk:    true,
+		AgentActivity: func(id string) (proto.SessionInfo, bool) {
+			for i := len(a.sessions) - 1; i >= 0; i-- {
+				s := a.sessions[i]
+				if s.CanvasFor == id && !s.Exited && !s.Hibernated && !a.removed[s.ID] {
+					if isWorking(s) {
+						s.State = proto.StateWorking
+					}
+					return s, true
+				}
+			}
+			return proto.SessionInfo{}, false
+		},
+		Web:    a.canvases.WebOf(a.canvasWeb),
+		CanAsk: true,
 		AskAgent: func(draft string) {
 			if cv := a.canvases.Canvas(); cv != nil {
 				a.canvasDraft(*cv, draft)

@@ -40,18 +40,19 @@ type Web struct {
 	// Update runs a function on the main thread.
 	Update func(func())
 
-	page       Page
-	making     bool
-	shown      string // canvas/frame/version loaded
-	html       string // the frame's HTML loaded, its shapes left out
-	motion     []proto.CanvasTransition
-	connectors string
-	pending    string // the frame's document, loaded once the page is made (compose)
-	zoom       float64
-	sel        string // the element outlined as selected
-	polling    bool   // a link's design is being asked for
-	polled     time.Time
-	design     bool // the page shows whole on the board: no scrolling of its own
+	page          Page
+	making        bool
+	shown         string // canvas/frame/version loaded
+	html          string // the frame's HTML loaded, its shapes left out
+	motion        []proto.CanvasTransition
+	connectors    string
+	connectorBusy bool
+	pending       string // the frame's document, loaded once the page is made (compose)
+	zoom          float64
+	sel           string // the element outlined as selected
+	polling       bool   // a link's design is being asked for
+	polled        time.Time
+	design        bool // the page shows whole on the board: no scrolling of its own
 	// wider is how far the page reaches past its frame's width, in CSS
 	// pixels: a horizontal scroll the design mustn't have.
 	wider     int

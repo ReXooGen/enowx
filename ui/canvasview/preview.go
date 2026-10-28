@@ -44,16 +44,25 @@ func htmlKey(f proto.CanvasFrame) string {
 // picture is design f's picture, made when its HTML settled; nil while
 // there is none, or it has no HTML.
 func (v *View) picture(c *ui.Context, o Options, f proto.CanvasFrame) ui.ImageSource {
-	if strings.TrimSpace(f.HTML) == "" || o.Render == nil || v.canvas == nil {
+	return v.cachedPicture(c, f, &v.thumbs, o.Render)
+}
+
+func (v *View) backgroundPicture(c *ui.Context, o Options, f proto.CanvasFrame) ui.ImageSource {
+	f.Elements = nil
+	return v.cachedPicture(c, f, &v.backgrounds, o.RenderBackground)
+}
+
+func (v *View) cachedPicture(c *ui.Context, f proto.CanvasFrame, cache *map[string]*thumb, render func(string, string, string, func([]byte, error))) ui.ImageSource {
+	if strings.TrimSpace(f.HTML) == "" || render == nil || v.canvas == nil {
 		return nil
 	}
-	if v.thumbs == nil {
-		v.thumbs = map[string]*thumb{}
+	if *cache == nil {
+		*cache = map[string]*thumb{}
 	}
-	t := v.thumbs[f.ID]
+	t := (*cache)[f.ID]
 	if t == nil {
 		t = &thumb{}
-		v.thumbs[f.ID] = t
+		(*cache)[f.ID] = t
 	}
 	key := htmlKey(f)
 	if t.key == key || t.asked == key {
@@ -67,7 +76,7 @@ func (v *View) picture(c *ui.Context, o Options, f proto.CanvasFrame) ui.ImageSo
 		return t.img
 	}
 	t.asked = key
-	o.Render(v.canvas.ID, f.ID, proto.RenderPNG, func(data []byte, err error) {
+	render(v.canvas.ID, f.ID, proto.RenderPNG, func(data []byte, err error) {
 		if err != nil || t.asked != key {
 			return
 		}

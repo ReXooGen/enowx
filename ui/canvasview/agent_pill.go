@@ -14,17 +14,34 @@ import (
 func (v *View) agentPill(c *ui.Context, o Options, cv proto.Canvas) {
 	now := time.Now()
 	active := v.designing(now)
+	waiting := false
+	agentID := cv.Agent
+	fromSession := false
+	if o.AgentActivity != nil {
+		if session, ok := o.AgentActivity(cv.ID); ok {
+			fromSession = true
+			agentID = session.ID
+			waiting = session.State == proto.StateWaiting
+			active = session.State == proto.StateWorking || waiting
+		}
+	}
 	if !active && !cv.Paused {
 		return
 	}
-	if active {
+	if active && !fromSession {
 		c.After(designingFor - now.Sub(cv.AgentAt) + 50*time.Millisecond)
 	}
 	who := "An agent"
-	if o.AgentName != nil && cv.Agent != "" {
-		who = o.AgentName(cv.Agent)
+	if o.AgentName != nil && agentID != "" {
+		who = o.AgentName(agentID)
 	}
 	label := who + " is designing"
+	if fromSession {
+		label = who + " is working"
+	}
+	if waiting {
+		label = who + " needs input"
+	}
 	if cv.Paused {
 		label = "Agents paused"
 	}
@@ -33,6 +50,8 @@ func (v *View) agentPill(c *ui.Context, o Options, cv proto.Canvas) {
 	pill.Children(func() {
 		if cv.Paused {
 			ui.Icon(c, icon.Pause).FontSize(12).TextColor(theme.Warning)
+		} else if waiting {
+			ui.Icon(c, icon.Alert).FontSize(12).TextColor(theme.Warning)
 		} else {
 			widget.Spinner(c, 12)
 		}

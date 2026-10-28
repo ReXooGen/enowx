@@ -180,6 +180,9 @@ func (s *Server) canvasRender(p proto.CanvasRenderParams) (proto.CanvasRendered,
 		return proto.CanvasRendered{}, err
 	}
 	out := proto.CanvasRendered{Format: format, Width: f.Width, Height: f.Height, By: "daemon"}
+	if p.BackgroundOnly {
+		f.Elements = nil
+	}
 	switch format {
 	case proto.RenderHTML:
 		out.Data = []byte(canvas.FrameDocument(f, assets))

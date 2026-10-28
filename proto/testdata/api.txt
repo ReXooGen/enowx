@@ -390,6 +390,7 @@ field CanvasLibraryParams.target string
 field CanvasLibraryResult.canvases []Canvas
 field CanvasLibraryResult.components []CanvasLibraryComponent
 field CanvasRef.id string
+field CanvasRenderParams.backgroundOnly bool
 field CanvasRenderParams.format string
 field CanvasRenderParams.frame string
 field CanvasRenderParams.id string

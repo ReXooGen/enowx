@@ -24,6 +24,7 @@ type dragState struct {
 	resize     bool
 	x, y, w, h float64
 	moved      bool
+	pending    bool // keep the final position visible until the daemon acknowledges
 }
 
 // textEdit is a shape's text being edited in place.
@@ -129,14 +130,17 @@ func (v *View) stage(c *ui.Context, o Options) {
 			v.deselect(o)
 		}
 		board.Children(func() {
+			browser := false
 			if hasHTML {
-				v.mockup(c, o, f, design, s)
+				browser = v.mockup(c, o, f, design, s)
 			}
 			drawing := v.panel == "grid" && v.gridF != nil && v.gridF.drawing
 			if !drawing {
 				v.gridGuides(c, o, f, s)
 			}
-			v.arrows(c, f, s)
+			if !browser {
+				v.arrows(c, f, s)
+			}
 			for _, el := range f.Elements {
 				if el.Type == proto.ShapeLine || el.Type == proto.ShapeArrow {
 					v.arrowHandle(c.Key(el.ID), o, f, el, s)
@@ -200,7 +204,7 @@ func (v *View) interactStage(c *ui.Context, o Options, width float32) {
 // its elements listed as they come. In Design mode a cover over the page
 // takes its pointer, so the board moves and zooms over it too, and a click
 // on it selects nothing.
-func (v *View) mockup(c *ui.Context, o Options, f proto.CanvasFrame, design ui.Rect, s float64) {
+func (v *View) mockup(c *ui.Context, o Options, f proto.CanvasFrame, design ui.Rect, s float64) bool {
 	w, h := design.W, design.H
 	if o.Web != nil {
 		// Small, the design shows as its picture, rendered at its own
@@ -209,7 +213,7 @@ func (v *View) mockup(c *ui.Context, o Options, f proto.CanvasFrame, design ui.R
 		// liveZoom up, and until the picture comes.
 		var img ui.ImageSource
 		if s < liveZoom && v.preview == 0 {
-			img = v.picture(c, o, f)
+			img = v.backgroundPicture(c, o, f)
 		}
 		if img != nil {
 			ui.Image(c.Key("design-picture"), img).Absolute().Left(0).Top(0).Size(w, h).Label("Picture of " + f.Name)
@@ -232,7 +236,7 @@ func (v *View) mockup(c *ui.Context, o Options, f proto.CanvasFrame, design ui.R
 			cover.Tooltip("Click to zoom in and pick its components")
 		}
 		v.componentBar(c, o, s, w, h)
-		return
+		return img == nil
 	}
 	ui.Column(c.Key("outline")).Absolute().Left(0).Top(0).Size(w, h).Padding(16).Gap(4).Children(func() {
 		ui.Text(c, "This device shows mockups in a web view: here, their elements.").FontSize(11).TextColor(ui.RGB(100, 116, 139))
@@ -247,6 +251,7 @@ func (v *View) mockup(c *ui.Context, o Options, f proto.CanvasFrame, design ui.R
 			})
 		}
 	})
+	return false
 }
 
 // followLink shows the design a mockup's link goes to: its number

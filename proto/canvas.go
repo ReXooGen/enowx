@@ -328,6 +328,8 @@ type CanvasRenderParams struct {
 	ID     string `json:"id"`
 	Frame  string `json:"frame,omitempty"`
 	Format string `json:"format,omitempty"`
+	// BackgroundOnly omits native shapes for the editor's background layer.
+	BackgroundOnly bool `json:"backgroundOnly,omitempty"`
 }
 
 // CanvasRendered is a frame rendered: by the daemon ("daemon") or the app

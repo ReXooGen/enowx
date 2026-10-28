@@ -116,4 +116,11 @@ func TestCanvasRenders(t *testing.T) {
 	if req.Width != 390 || !strings.Contains(req.HTML, "Hello") || !strings.Contains(req.HTML, "API") {
 		t.Fatalf("asked %+v", req)
 	}
+	if _, err = c.RenderCanvas(proto.CanvasRenderParams{ID: cv.ID, Frame: "mobile", BackgroundOnly: true}); err != nil {
+		t.Fatal(err)
+	}
+	background := <-asked
+	if !strings.Contains(background.HTML, "Hello") || strings.Contains(background.HTML, "API") {
+		t.Fatal("background render still includes native shapes")
+	}
 }

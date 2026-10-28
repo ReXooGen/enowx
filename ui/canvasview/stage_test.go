@@ -46,6 +46,7 @@ func TestMockupShrinksWholeWhenZoomedOut(t *testing.T) {
 		Web: &Web{NewPage: func(done func(Page, error)) { done(livePage{}, nil) }, Update: func(fn func()) { later = append(later, fn) }},
 	}
 	v := &View{}
+	o.RenderBackground = o.Render
 	v.Open(o, "c1")
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Width(1280).Height(800).Children(func() { v.Draw(c, o) })

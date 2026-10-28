@@ -146,6 +146,9 @@ func ellipsePath(p *ui.Path, r ui.Rect) {
 // handlePointer selects shape el on a click, connects an arrow to it, edits
 // its text on a double click, and moves it as it is dragged.
 func (v *View) handlePointer(c *ui.Context, o Options, box ui.Element, el proto.CanvasElement, s float64) {
+	if v.drag != nil && v.drag.pending {
+		return
+	}
 	if el.Locked {
 		if box.Clicked() {
 			v.chooseShape(el.ID, box.ClickModifiers()&ui.Shift != 0)
@@ -165,14 +168,15 @@ func (v *View) handlePointer(c *ui.Context, o Options, box ui.Element, el proto.
 			v.drag.moved = true
 		}
 	} else if d := v.drag; d != nil && d.id == el.ID && !d.resize {
-		v.drag = nil
 		if d.moved {
 			if len(v.selectedShapes()) > 1 {
-				v.edit(o, proto.CanvasEdit{Op: proto.CanvasOpBatch, Targets: v.selectedShapes(), Action: "move", DX: math.Round(d.x - el.X), DY: math.Round(d.y - el.Y)})
+				v.commitDrag(o, d, proto.CanvasEdit{Op: proto.CanvasOpBatch, Targets: v.selectedShapes(), Action: "move", DX: math.Round(d.x - el.X), DY: math.Round(d.y - el.Y)})
 			} else {
 				el.X, el.Y = math.Round(d.x), math.Round(d.y)
-				v.edit(o, proto.CanvasEdit{Op: proto.CanvasOpElementSet, Element: &el})
+				v.commitDrag(o, d, proto.CanvasEdit{Op: proto.CanvasOpElementSet, Element: &el})
 			}
+		} else {
+			v.drag = nil
 		}
 	}
 	if box.DoubleClicked() && el.Type != proto.ShapeImage {
@@ -197,6 +201,9 @@ func (v *View) handlePointer(c *ui.Context, o Options, box ui.Element, el proto.
 func (v *View) resizeHandle(c *ui.Context, o Options, el proto.CanvasElement, s float64) {
 	h := ui.Box(c.Key("resize")).Absolute().Right(-5).Bottom(-5).Size(10, 10).Radius(2).
 		Background(ui.RGB(255, 255, 255)).Border(1.5, ui.RGB(99, 102, 241)).Cursor(ui.CursorResizeNWSE).Label("Resize " + el.ID)
+	if v.drag != nil && v.drag.pending {
+		return
+	}
 	if dx, dy, ok := h.Dragged(); ok {
 		if v.drag == nil || v.drag.id != el.ID || !v.drag.resize {
 			v.drag = &dragState{id: el.ID, resize: true, x: el.X, y: el.Y, w: el.W, h: el.H}
@@ -205,10 +212,11 @@ func (v *View) resizeHandle(c *ui.Context, o Options, el proto.CanvasElement, s 
 		v.drag.h = math.Max(v.drag.h+float64(dy)/s, 8)
 		v.drag.moved = v.drag.moved || dx != 0 || dy != 0
 	} else if d := v.drag; d != nil && d.id == el.ID && d.resize {
-		v.drag = nil
 		if d.moved {
 			el.W, el.H = math.Round(d.w), math.Round(d.h)
-			v.edit(o, proto.CanvasEdit{Op: proto.CanvasOpElementSet, Element: &el})
+			v.commitDrag(o, d, proto.CanvasEdit{Op: proto.CanvasOpElementSet, Element: &el})
+		} else {
+			v.drag = nil
 		}
 	}
 }

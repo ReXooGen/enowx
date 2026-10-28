@@ -40,6 +40,8 @@ type Options struct {
 	// Render renders a frame (or, for html without one, the canvas) as
 	// format: png, pdf, svg or html.
 	Render func(id, frame, format string, done func([]byte, error))
+	// RenderBackground renders HTML alone, without the editor's native shapes.
+	RenderBackground func(id, frame, format string, done func([]byte, error))
 	// SaveFile asks where to save data, named name, and saves it.
 	SaveFile func(name string, data []byte)
 	// Projects are the host's projects, to attach a canvas to; MakeCode
@@ -51,6 +53,8 @@ type Options struct {
 	Share func(id string, stop bool, done func(proto.CanvasShare, error))
 	// AgentName names the agent of a session.
 	AgentName func(session string) string
+	// AgentActivity reports the current canvas session even before its first edit.
+	AgentActivity func(canvasID string) (proto.SessionInfo, bool)
 	// Web shows a mockup's HTML: nil where this device has no web view.
 	Web *Web
 	// CanAsk offers Ask an agent, whose panel the app draws beside the
@@ -122,10 +126,11 @@ type View struct {
 	listOpen bool
 	// view is the designs' view: one at a time, all as a grid, or a few
 	// side by side (compare, frame IDs).
-	view   int
-	cmpSel map[string]bool
-	thumbs map[string]*thumb
-	descr  *describeForm
+	view        int
+	cmpSel      map[string]bool
+	thumbs      map[string]*thumb
+	backgrounds map[string]*thumb
+	descr       *describeForm
 	// pendingFrame is a design to show once the canvas opening loaded.
 	pendingFrame string
 }

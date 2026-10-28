@@ -233,7 +233,10 @@ func (v *View) arrows(c *ui.Context, f proto.CanvasFrame, s float64) {
 			}
 			x1, y1, x2, y2 := canvas.Ends(shown, el)
 			w := float32(math.Max(st.StrokeWidth*s, 1))
-			p.Line(r.X+float32(x1*s), r.Y+float32(y1*s), r.X+float32(x2*s), r.Y+float32(y2*s), w, col)
+			// Painter.Line only draws axis-aligned lines; connectors can be diagonal.
+			var shaft ui.Path
+			shaft.MoveTo(r.X+float32(x1*s), r.Y+float32(y1*s)).LineTo(r.X+float32(x2*s), r.Y+float32(y2*s))
+			p.StrokePath(&shaft, w, col)
 			if el.Type == proto.ShapeArrow {
 				ax, ay, bx, by := canvas.ArrowHead(x1, y1, x2, y2, 8+st.StrokeWidth*2)
 				var head ui.Path

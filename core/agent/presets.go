@@ -155,6 +155,7 @@ var Presets = []Preset{
 	},
 	{
 		ID: "omp", Name: "OMP", Command: "omp",
+		Interrupt:       "\x1b",
 		SkipPermissions: []string{"--auto-approve"},
 		Continue:        []string{"--continue"},
 		Resume:          []string{"--resume"},

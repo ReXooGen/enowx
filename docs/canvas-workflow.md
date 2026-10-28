@@ -18,6 +18,8 @@ While working, recorded thoughts stay open and newest first; **Running tools** d
 
 The activity pill inside the Canvas follows the session's Working and Needs input states, including time spent thinking or running tools before the first canvas edit.
 
+**Pause** blocks agent edits and interrupts the current Canvas conversation. **Resume** sends that same conversation a continuation message and Enter, asking it to read the current Canvas and preserve edits made while paused. Repeated Resume calls do not send duplicate turns. If the paused conversation has closed or is unavailable, Canvas stays paused and reports the error; open Ask an agent to continue in a running conversation. These controls use the host's daemon for both This PC and servers.
+
 ## Library
 
 Select an HTML mockup element, enter a name and choose **Save selected component**. Insert a saved component into another design. **Update** replaces the saved definition from the selection and updates its linked instances across canvases on this host. Each insertion gets unique IDs, including label and accessibility references. Removing a definition keeps existing instances.

@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/canvas"
 	"github.com/enowx/enowx/proto"
 )
@@ -21,9 +20,10 @@ import (
 // the user paused, and renders waiting for the app. Safe from any
 // goroutine.
 type canvasState struct {
-	mu      sync.Mutex
-	paused  map[string]bool
-	pending map[string]chan proto.CanvasRenderReply
+	mu            sync.Mutex
+	paused        map[string]bool
+	pausedSession map[string]string
+	pending       map[string]chan proto.CanvasRenderReply
 }
 
 func (cs *canvasState) isPaused(id string) bool {
@@ -32,17 +32,19 @@ func (cs *canvasState) isPaused(id string) bool {
 	return cs.paused[id]
 }
 
-func (cs *canvasState) setPaused(id string, on bool) {
+func (cs *canvasState) setPaused(id string, on bool) bool {
 	cs.mu.Lock()
 	defer cs.mu.Unlock()
 	if cs.paused == nil {
 		cs.paused = map[string]bool{}
 	}
+	changed := cs.paused[id] != on
 	if on {
 		cs.paused[id] = true
 	} else {
 		delete(cs.paused, id)
 	}
+	return changed
 }
 
 // errCanvasPaused is an agent's change to a canvas the user paused.
@@ -93,9 +95,8 @@ func (s *Server) canvasesChanged() {
 	}
 }
 
-// canvasControl pauses, resumes or stops the agents designing a canvas:
-// stopping interrupts the agent that changed it last, as Esc does, and
-// pauses it.
+// canvasControl controls the conversation as well as permission to edit:
+// a resumed agent needs a new turn after its interrupted turn ended.
 func (s *Server) canvasControl(p proto.CanvasControl) (proto.CanvasInfo, error) {
 	c, err := s.canvases.Get(p.ID)
 	if err != nil {
@@ -103,9 +104,16 @@ func (s *Server) canvasControl(p proto.CanvasControl) (proto.CanvasInfo, error) 
 	}
 	switch p.Action {
 	case proto.CanvasPause:
-		s.canvasState.setPaused(p.ID, true)
+		if s.canvasState.setPaused(p.ID, true) {
+			s.interruptCanvasAgent(c)
+		}
 	case proto.CanvasResume:
-		s.canvasState.setPaused(p.ID, false)
+		if s.canvasState.setPaused(p.ID, false) {
+			if err := s.resumeCanvasAgent(c); err != nil {
+				s.canvasState.setPaused(p.ID, true)
+				return proto.CanvasInfo{}, err
+			}
+		}
 	case proto.CanvasOpen, proto.CanvasCompare:
 		// Designs by number or name, as the apps know them: by ID.
 		ch := proto.CanvasChange{Op: p.Action}
@@ -131,13 +139,7 @@ func (s *Server) canvasControl(p proto.CanvasControl) (proto.CanvasInfo, error) 
 		return ch.Canvas.CanvasInfo, nil
 	case proto.CanvasStop:
 		s.canvasState.setPaused(p.ID, true)
-		if sess, err := s.sessions.Get(c.Agent); err == nil {
-			key := "\x03"
-			if preset, ok := agent.Find(sess.Meta().Agent); ok {
-				key = preset.InterruptKey()
-			}
-			s.sessions.Input(sess, []byte(key))
-		}
+		s.interruptCanvasAgent(c)
 	default:
 		return proto.CanvasInfo{}, errors.New("canvas: pause, resume, stop, open or compare")
 	}

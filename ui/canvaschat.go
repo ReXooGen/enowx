@@ -25,10 +25,11 @@ import (
 
 // hostCanvasChat is a canvas's conversation with its agent, as last read.
 type hostCanvasChat struct {
-	canvas  string
-	log     proto.CanvasChatLog
-	loaded  bool
-	history bool // its messages listed, with their versions
+	canvas   string
+	log      proto.CanvasChatLog
+	loaded   bool
+	history  bool // its messages listed, with their versions
+	terminal bool // show the agent's live CLI instead of its transcript
 }
 
 // canvasChatOf is canvas id's conversation, read anew when another canvas
@@ -128,11 +129,14 @@ func (a *App) canvasAssistant(c *ui.Context, cv proto.Canvas) {
 		a.canvasStart(c, cv, agentID)
 		return
 	}
+	if chatview.Supported(s) {
+		a.canvasAgentViewToggle(c, hc, s)
+	}
 	shown := func() bool {
-		return a.page == pageCanvas && a.canvases.AssistantOpen() && a.canvases.Selected() == cv.ID
+		return a.page == pageCanvas && a.canvases.AssistantOpen() && a.canvases.Selected() == cv.ID && !hc.terminal
 	}
 	switch p := a.panes[s.ID]; {
-	case chatview.Supported(s):
+	case chatview.Supported(s) && !hc.terminal:
 		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 			a.chatViewSending(c.Key("chat:"+s.ID), s, shown, chatTweaks{
 				send:     func(text string, files []string) { a.canvasSend(cv.ID, s, text, files) },

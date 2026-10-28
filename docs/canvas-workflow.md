@@ -2,6 +2,8 @@
 
 Open a canvas and choose **Canvas tools** in the toolbar. The workflow panel has six sections. These controls use the host's daemon for both This PC and VPS canvases; an older daemon needs updating before it can store the new operations.
 
+The Canvas agent panel offers **Chat / Terminal** for agents with transcript support, including OMP. Terminal shows the same running session's live CLI, including progress, errors and prompts that may not appear in its transcript. Switching views does not restart the agent.
+
 ## Library
 
 Select an HTML mockup element, enter a name and choose **Save selected component**. Insert a saved component into another design. **Update** replaces the saved definition from the selection and updates its linked instances across canvases on this host. Each insertion gets unique IDs, including label and accessibility references. Removing a definition keeps existing instances.

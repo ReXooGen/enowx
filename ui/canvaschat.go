@@ -32,6 +32,11 @@ type hostCanvasChat struct {
 	terminal                  bool // show the agent's live CLI instead of its transcript
 	modelOpen                 bool
 	modelDraft, providerDraft string
+	models                    []proto.AgentModel
+	modelsLoading             bool
+	modelsError               string
+	modelRequest              int
+	modelsGeneration          int
 }
 
 // canvasChatOf is canvas id's conversation, read anew when another canvas

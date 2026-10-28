@@ -12,7 +12,7 @@ import (
 
 func TestCanvasModelProviderSelectionBeforeStarting(t *testing.T) {
 	a := New(Options{})
-	hc := &hostCanvasChat{canvas: "canvas", modelOpen: true, modelDraft: "deepseek-v4-flash", providerDraft: "custom"}
+	hc := &hostCanvasChat{canvas: "canvas", modelOpen: true, modelDraft: "deepseek-v4-flash", providerDraft: "custom", models: []proto.AgentModel{{Provider: "custom", ID: "deepseek-v4-flash", Name: "DeepSeek V4 Flash", Selector: "custom/deepseek-v4-flash"}}}
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Width(600).Height(500).TextColor(theme.Text).Children(func() { a.canvasModelDialog(c, hc, "omp", proto.SessionInfo{}, false) })
 	}, 600, 500)
@@ -30,5 +30,29 @@ func TestCanvasModelProviderSelectionBeforeStarting(t *testing.T) {
 	}
 	if _, ok := canvasModelID("provider", "bad\n/model injected"); ok {
 		t.Fatal("multiline model accepted")
+	}
+}
+
+func TestCanvasProviderChangeOnlyOffersItsRegisteredModels(t *testing.T) {
+	a := New(Options{})
+	hc := &hostCanvasChat{modelOpen: true, providerDraft: "alpha", modelDraft: "a", models: []proto.AgentModel{{Provider: "alpha", ID: "a", Name: "A", Selector: "alpha/a"}, {Provider: "beta", ID: "b", Name: "B", Selector: "beta/b"}}}
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Width(600).Height(500).TextColor(theme.Text).Children(func() { a.canvasModelDialog(c, hc, "omp", proto.SessionInfo{}, false) })
+	}, 600, 500)
+	tt.Frame()
+	tt.Advance(time.Second)
+	if err := tt.Click("Registered provider"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("Registered provider: beta"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if hc.providerDraft != "beta" || hc.modelDraft != "b" {
+		t.Fatalf("provider retained another provider's model: %s/%s", hc.providerDraft, hc.modelDraft)
+	}
+	if canvasModelRegistered(hc.models, "beta/a") || canvasModelRegistered(hc.models, "unknown/model") {
+		t.Fatal("unregistered selection accepted")
 	}
 }

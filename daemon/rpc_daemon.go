@@ -18,6 +18,7 @@ var daemonHandlers = map[string]handler{
 }
 
 var agentHandlers = map[string]handler{
+	proto.MethodAgentModels: with(func(c *conn, p proto.AgentModelsParams) (any, error) { return c.srv.agentModels(p) }),
 	proto.MethodAgentList: bare(func(c *conn) (any, error) {
 		// Agents installed since the daemon started show up.
 		refreshLoginPath(c.srv.logger())

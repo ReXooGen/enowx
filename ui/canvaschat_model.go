@@ -27,23 +27,30 @@ func (a *App) openCanvasModelPicker(canvasID, agentID string) {
 		}
 	}
 	hc.modelOpen = true
+	if agentID == "omp" {
+		a.loadCanvasModels(hc, agentID)
+	}
 }
 
 func (a *App) canvasModelDialog(c *ui.Context, hc *hostCanvasChat, agentID string, s proto.SessionInfo, running bool) {
 	if !hc.modelOpen {
 		return
 	}
+	if agentID == "omp" && hc.modelsGeneration != a.gen {
+		a.loadCanvasModels(hc, agentID)
+	}
 	settings := agent.SettingsOf(agentID)
 	widget.Dialog(c, &hc.modelOpen, 420, 12, func() {
 		ui.Text(c, "Model / provider").FontSize(16).FontWeight(600).TextColor(theme.TextStrong)
 		ui.Text(c, "Use a model available in this agent's configuration on this host.").FontSize(12).TextColor(theme.Muted)
 		if agentID == "omp" {
-			widget.Field(c, "Provider (optional)", func() { widget.Input(c, &hc.providerDraft, "Provider ID").Label("Provider ID").TextColor(theme.Text) })
+			a.canvasRegisteredModels(c, hc, agentID)
+		} else {
+			widget.Field(c, "Model", func() {
+				widget.Input(c, &hc.modelDraft, "Model ID").Label("Model ID").TextColor(theme.Text).AutoFocus()
+			})
 		}
-		widget.Field(c, "Model", func() {
-			widget.Input(c, &hc.modelDraft, "Model ID").Label("Model ID").TextColor(theme.Text).AutoFocus()
-		})
-		if len(settings.Models) > 0 {
+		if agentID != "omp" && len(settings.Models) > 0 {
 			labels := []string{}
 			for _, model := range settings.Models {
 				labels = append(labels, model.ID)
@@ -59,6 +66,9 @@ func (a *App) canvasModelDialog(c *ui.Context, hc *hostCanvasChat, agentID strin
 				hc.modelOpen = false
 			}
 			model, valid := canvasModelID(hc.providerDraft, hc.modelDraft)
+			if agentID == "omp" {
+				valid = valid && !hc.modelsLoading && hc.modelsError == "" && canvasModelRegistered(hc.models, model)
+			}
 			unsupported := len(settings.ModelFlag) == 0 || running && settings.ModelCommand == ""
 			if widget.PrimaryButton(c, nil, "Apply model", "").Disabled(!valid || busy || unsupported).Clicked() {
 				a.notesModel = setPick(a.notesModel, agentID, model)

@@ -103,6 +103,15 @@ field AgentInfo.install string
 field AgentInfo.installed bool
 field AgentInfo.name string
 field AgentInfo.signIn string
+field AgentModel.id string
+field AgentModel.name string
+field AgentModel.provider string
+field AgentModel.selector string
+field AgentModels.models []AgentModel
+field AgentModels.registered bool
+field AgentModelsParams.agent string
+field AgentModelsParams.canvas string
+field AgentModelsParams.session string
 field AndroidADBConn.id uint32
 field AndroidADBConn.listener uint32
 field AndroidADBListener.id uint32
@@ -1655,6 +1664,7 @@ method account.list
 method account.remove
 method agent.history
 method agent.list
+method agent.models
 method agentapi.clear
 method agentapi.list
 method agentapi.restore

@@ -58,7 +58,14 @@ func (v *View) stage(c *ui.Context, o Options) {
 	if o.Web != nil {
 		o.Web.setDesign(v.mode == modeDesign)
 		if v.canvas != nil {
-			o.Web.show(*v.canvas, f, nil) // the design picked, when it isn't the one loaded
+			shown := f
+			if v.drag != nil {
+				shown.Elements = make([]proto.CanvasElement, len(f.Elements))
+				for i, el := range f.Elements {
+					shown.Elements[i] = v.placed(el)
+				}
+			}
+			o.Web.show(*v.canvas, shown, nil)
 		}
 	}
 	if v.mode == modeInteract && hasHTML && o.Web != nil {

@@ -40,17 +40,18 @@ type Web struct {
 	// Update runs a function on the main thread.
 	Update func(func())
 
-	page    Page
-	making  bool
-	shown   string // canvas/frame/version loaded
-	html    string // the frame's HTML loaded, its shapes left out
-	motion  []proto.CanvasTransition
-	pending string // the frame's document, loaded once the page is made (compose)
-	zoom    float64
-	sel     string // the element outlined as selected
-	polling bool   // a link's design is being asked for
-	polled  time.Time
-	design  bool // the page shows whole on the board: no scrolling of its own
+	page       Page
+	making     bool
+	shown      string // canvas/frame/version loaded
+	html       string // the frame's HTML loaded, its shapes left out
+	motion     []proto.CanvasTransition
+	connectors string
+	pending    string // the frame's document, loaded once the page is made (compose)
+	zoom       float64
+	sel        string // the element outlined as selected
+	polling    bool   // a link's design is being asked for
+	polled     time.Time
+	design     bool // the page shows whole on the board: no scrolling of its own
 	// wider is how far the page reaches past its frame's width, in CSS
 	// pixels: a horizontal scroll the design mustn't have.
 	wider     int
@@ -101,6 +102,9 @@ func key(c proto.Canvas, f proto.CanvasFrame) string { return c.ID + "/" + f.ID 
 // show loads frame f of c when it isn't the one loaded.
 func (w *Web) show(c proto.Canvas, f proto.CanvasFrame, _ *proto.Canvas) {
 	if w.shown == key(c, f) && w.html == f.HTML && slices.Equal(w.motion, f.Transitions) {
+		if svg := canvas.ConnectorSVG(f); svg != w.connectors {
+			w.updateConnectors(svg)
+		}
 		return
 	}
 	w.load(c, f)
@@ -110,10 +114,11 @@ func (w *Web) show(c proto.Canvas, f proto.CanvasFrame, _ *proto.Canvas) {
 func (w *Web) load(c proto.Canvas, f proto.CanvasFrame) {
 	w.shown, w.html = key(c, f), f.HTML
 	w.motion = slices.Clone(f.Transitions)
+	w.connectors = canvas.ConnectorSVG(f)
 	names := canvas.AssetNames(f.HTML)
 	bare := proto.CanvasFrame{Width: f.Width, Height: f.Height, Background: f.Background, HTML: f.HTML, Transitions: f.Transitions}
 	if len(names) == 0 || w.Asset == nil {
-		w.setDoc(canvas.FrameDocument(bare, nil))
+		w.setDoc(connectorDocument(canvas.FrameDocument(bare, nil), w.connectors))
 		return
 	}
 	shown := w.shown
@@ -132,7 +137,7 @@ func (w *Web) load(c proto.Canvas, f proto.CanvasFrame) {
 		})
 		w.Update(func() {
 			if w.shown == shown {
-				w.setDoc(doc)
+				w.setDoc(connectorDocument(doc, w.connectors))
 			}
 		})
 	}()

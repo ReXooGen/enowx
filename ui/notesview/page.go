@@ -70,9 +70,9 @@ func (v *View) pageView(c *ui.Context, o Options) {
 			}
 			var b ui.Element
 			if tight {
-				b = widget.IconButton(c, icon.Chat, label, v.assistant)
+				b = widget.IconButton(c, icon.Bot, label, v.assistant)
 			} else {
-				b = widget.Button(c, widget.Secondary, icon.Chat, label, "").Height(28).PaddingX(10)
+				b = widget.Button(c, widget.Secondary, icon.Bot, label, "").Height(28).PaddingX(10)
 				if v.assistant {
 					b.Background(theme.Selected)
 				}

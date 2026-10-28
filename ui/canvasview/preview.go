@@ -1,6 +1,7 @@
 package canvasview
 
 import (
+	"encoding/json"
 	"hash/fnv"
 	"math"
 	"strconv"
@@ -35,6 +36,8 @@ const settleFor = 1500 * time.Millisecond
 func htmlKey(f proto.CanvasFrame) string {
 	h := fnv.New64a()
 	h.Write([]byte(f.HTML))
+	shapes, _ := json.Marshal(f.Elements)
+	h.Write(shapes)
 	return f.ID + ":" + strconv.FormatUint(h.Sum64(), 16) + ":" + strconv.Itoa(f.Width) + "x" + strconv.Itoa(f.Height)
 }
 
@@ -114,8 +117,20 @@ func drawShapes(p *ui.Painter, r ui.Rect, f proto.CanvasFrame, s float64) {
 		width := float32(math.Max(st.StrokeWidth*s, 0.75))
 		switch el.Type {
 		case proto.ShapeLine, proto.ShapeArrow:
-			x1, y1, x2, y2 := canvas.Ends(f, el)
-			p.Line(r.X+float32(x1*s), r.Y+float32(y1*s), r.X+float32(x2*s), r.Y+float32(y2*s), width, stroke)
+			points := canvas.ConnectorPath(f, el)
+			var path ui.Path
+			path.MoveTo(r.X+float32(points[0].X*s), r.Y+float32(points[0].Y*s))
+			for _, point := range points[1:] {
+				path.LineTo(r.X+float32(point.X*s), r.Y+float32(point.Y*s))
+			}
+			p.StrokePath(&path, width, stroke)
+			if el.Type == proto.ShapeArrow {
+				a, b := points[len(points)-2], points[len(points)-1]
+				ax, ay, bx, by := canvas.ArrowHead(a.X, a.Y, b.X, b.Y, 8+st.StrokeWidth*2)
+				var head ui.Path
+				head.MoveTo(r.X+float32(b.X*s), r.Y+float32(b.Y*s)).LineTo(r.X+float32(ax*s), r.Y+float32(ay*s)).LineTo(r.X+float32(bx*s), r.Y+float32(by*s)).Close()
+				p.FillPath(&head, stroke)
+			}
 			continue
 		case proto.ShapeEllipse, proto.ShapeDiamond:
 			var path ui.Path

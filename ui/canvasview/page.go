@@ -2,7 +2,6 @@ package canvasview
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -17,7 +16,6 @@ import (
 func (v *View) page(c *ui.Context, o Options) {
 	cv := v.canvas
 	v.header(c, o, *cv)
-	v.agentBar(c, o, *cv)
 	if v.err != "" {
 		ui.Row(c).FillWidth().PaddingX(14).Height(30).AlignItems(ui.Center).Gap(8).Background(theme.Fade(theme.Error, 0.1)).Children(func() {
 			ui.Text(c, v.err).FontSize(12).TextColor(theme.Error).Grow(1).SingleLine()
@@ -42,7 +40,10 @@ func (v *View) page(c *ui.Context, o Options) {
 					}
 					ui.Column(c).Grow(1).MinWidth(0).FillHeight().Children(func() {
 						v.designLine(c, o)
-						v.stage(c, o)
+						ui.Box(c.Key("canvas-surface")).Grow(1).FillWidth().MinHeight(0).Children(func() {
+							v.stage(c, o)
+							v.agentPill(c, o, *cv)
+						})
 					})
 				}
 			})
@@ -99,10 +100,20 @@ func (v *View) header(c *ui.Context, o Options, cv proto.Canvas) {
 				v.togglePanel(o, p.id)
 			}
 		}
-		if o.CanAsk && widget.IconButton(c, icon.Chat, "Ask an agent", v.assistant).Clicked() {
-			v.assistant = !v.assistant
+		if o.CanAsk {
+			label := "Ask an agent"
 			if v.assistant {
-				v.panel = "" // room for the agent
+				label = "Hide the agent"
+			}
+			button := widget.Button(c.Key("ask-agent"), widget.Secondary, icon.Bot, label, "").Height(28).PaddingX(10)
+			if v.assistant {
+				button.Background(theme.AccentSoft).Border(1, theme.AccentLine)
+			}
+			if button.Clicked() {
+				v.assistant = !v.assistant
+				if v.assistant {
+					v.panel = ""
+				}
 			}
 		}
 		var exp ui.Element
@@ -208,46 +219,6 @@ func containsPath(list []string, p string) bool {
 
 // modKey is the shortcuts' modifier as menus show it.
 var modKey = "⌘"
-
-// agentBar says an agent designs the canvas now, with pause and stop; or
-// that the user paused agents, with resume.
-func (v *View) agentBar(c *ui.Context, o Options, cv proto.Canvas) {
-	now := time.Now()
-	active := v.designing(now)
-	if !active && !cv.Paused {
-		return
-	}
-	if active {
-		c.After(designingFor - now.Sub(cv.AgentAt) + 50*time.Millisecond)
-	}
-	who := "An agent"
-	if o.AgentName != nil && cv.Agent != "" {
-		who = o.AgentName(cv.Agent)
-	}
-	ui.Row(c.Key("agent-bar")).FillWidth().Height(36).Shrink(0).PaddingX(14).Gap(8).AlignItems(ui.Center).
-		Background(theme.AccentSoft).BorderWidth(0, 0, 1, 0).BorderColor(theme.AccentLine).Children(func() {
-		if cv.Paused {
-			ui.Icon(c, icon.Pause).FontSize(13).TextColor(theme.Warning)
-			ui.Text(c, "Agents are paused on this canvas: their changes wait until you resume").FontSize(12).TextColor(theme.Text).Grow(1).SingleLine()
-			if widget.Button(c, widget.Primary, icon.Play, "Resume", "").Height(26).PaddingX(10).Clicked() {
-				o.Control(cv.ID, proto.CanvasResume, v.reportErr)
-			}
-			return
-		}
-		widget.Spinner(c, 12)
-		what := ""
-		if v.last.Element != "" && now.Sub(v.lastAt) < designingFor {
-			what = " · " + v.last.Element
-		}
-		ui.Text(c, who+" is designing"+what).FontSize(12).TextColor(theme.Text).Grow(1).SingleLine()
-		if widget.Button(c, widget.Secondary, icon.Pause, "Pause", "").Height(26).PaddingX(10).Clicked() {
-			o.Control(cv.ID, proto.CanvasPause, v.reportErr)
-		}
-		if widget.Button(c, widget.Secondary, icon.Stop, "Stop", "").Height(26).PaddingX(10).Tooltip("Interrupt the agent, and pause").Clicked() {
-			o.Control(cv.ID, proto.CanvasStop, v.reportErr)
-		}
-	})
-}
 
 func (v *View) reportErr(err error) {
 	if err != nil {

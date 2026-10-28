@@ -118,7 +118,7 @@ func (v *View) inspector(c *ui.Context, o Options, f proto.CanvasFrame) {
 		} else if save.Clicked() {
 			v.edit(o, proto.CanvasEdit{Op: proto.CanvasOpHTMLPatch, Target: v.sel, HTML: insp.text})
 		}
-		if o.AskAgent != nil && widget.Button(c, widget.Secondary, icon.Chat, "Ask agent", "").Label("Ask agent about "+v.sel).Clicked() {
+		if o.AskAgent != nil && widget.Button(c, widget.Secondary, icon.Bot, "Ask agent", "").Label("Ask agent about "+v.sel).Clicked() {
 			v.assistant, v.panel = true, "" // room for the agent
 			o.AskAgent("@#" + v.sel + " ")
 		}
@@ -164,6 +164,7 @@ func (v *View) shapeInspector(c *ui.Context, o Options, el proto.CanvasElement) 
 		ui.Text(c, fmt.Sprintf("%g, %g · %g×%g", el.X, el.Y, el.W, el.H)).FontSize(11).TextColor(theme.Muted)
 	} else {
 		ui.Text(c, el.From+" → "+el.To).FontSize(11).TextColor(theme.Muted)
+		v.connectorRouting(c, o, el)
 	}
 	if el.Type != proto.ShapeImage {
 		ui.Row(c).FillWidth().Gap(6).Children(func() {
@@ -183,7 +184,7 @@ func (v *View) shapeInspector(c *ui.Context, o Options, el proto.CanvasElement) 
 	ui.Text(c, "Line").FontSize(11).TextColor(theme.Muted)
 	swatches(c.Key("stroke"), el.Stroke, func(col string) { set(func(x *proto.CanvasElement) { x.Stroke = col }) })
 	ui.Row(c).FillWidth().Gap(6).Children(func() {
-		if o.AskAgent != nil && widget.Button(c, widget.Secondary, icon.Chat, "Ask agent", "").Label("Ask agent about "+v.sel).Clicked() {
+		if o.AskAgent != nil && widget.Button(c, widget.Secondary, icon.Bot, "Ask agent", "").Label("Ask agent about "+v.sel).Clicked() {
 			v.assistant, v.panel = true, "" // room for the agent
 			o.AskAgent("@#" + v.sel + " ")
 		}

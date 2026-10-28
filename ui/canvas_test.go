@@ -118,8 +118,8 @@ func TestCanvasBuiltLiveWhileTheUserWatches(t *testing.T) {
 			return h.tt.HasText(want) && h.frameShapes() == i+1
 		})
 		if i == 1 {
-			if !h.tt.HasText("An agent is designing · form") {
-				t.Fatalf("no agent bar: %q", h.tt.Texts())
+			if !h.tt.HasText("An agent is designing") {
+				t.Fatalf("no agent activity pill: %q", h.tt.Texts())
 			}
 			shot(t, h.tt, "canvas-live.png")
 		}

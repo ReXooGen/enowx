@@ -181,7 +181,7 @@ func (v *View) handlePointer(c *ui.Context, o Options, box ui.Element, el proto.
 	}
 	if box.Clicked() {
 		if v.connect != "" && v.connect != el.ID {
-			arrow := proto.CanvasElement{Type: proto.ShapeArrow, From: v.connect, To: el.ID}
+			arrow := proto.CanvasElement{Type: proto.ShapeArrow, From: v.connect, To: el.ID, Routing: "elbow"}
 			v.connect = ""
 			v.edit(o, proto.CanvasEdit{Op: proto.CanvasOpElementSet, Element: &arrow})
 			return
@@ -231,13 +231,18 @@ func (v *View) arrows(c *ui.Context, f proto.CanvasFrame, s float64) {
 			if v.sel == el.ID || v.recent(el.ID) {
 				col = ui.RGB(99, 102, 241)
 			}
-			x1, y1, x2, y2 := canvas.Ends(shown, el)
+			points := canvas.ConnectorPath(shown, el)
 			w := float32(math.Max(st.StrokeWidth*s, 1))
 			// Painter.Line only draws axis-aligned lines; connectors can be diagonal.
 			var shaft ui.Path
-			shaft.MoveTo(r.X+float32(x1*s), r.Y+float32(y1*s)).LineTo(r.X+float32(x2*s), r.Y+float32(y2*s))
+			shaft.MoveTo(r.X+float32(points[0].X*s), r.Y+float32(points[0].Y*s))
+			for _, point := range points[1:] {
+				shaft.LineTo(r.X+float32(point.X*s), r.Y+float32(point.Y*s))
+			}
 			p.StrokePath(&shaft, w, col)
 			if el.Type == proto.ShapeArrow {
+				a, b := points[len(points)-2], points[len(points)-1]
+				x1, y1, x2, y2 := a.X, a.Y, b.X, b.Y
 				ax, ay, bx, by := canvas.ArrowHead(x1, y1, x2, y2, 8+st.StrokeWidth*2)
 				var head ui.Path
 				head.MoveTo(r.X+float32(x2*s), r.Y+float32(y2*s)).LineTo(r.X+float32(ax*s), r.Y+float32(ay*s)).
@@ -255,8 +260,8 @@ func (v *View) arrowHandle(c *ui.Context, o Options, f proto.CanvasFrame, el pro
 	for i, x := range f.Elements {
 		shown.Elements[i] = v.placed(x)
 	}
-	x1, y1, x2, y2 := canvas.Ends(shown, el)
-	mx, my := (x1+x2)/2*s, (y1+y2)/2*s
+	mx, my := canvas.ConnectorMiddle(canvas.ConnectorPath(shown, el))
+	mx, my = mx*s, my*s
 	st := canvas.StyleOf(el)
 	label := ui.Row(c).Absolute().Left(float32(mx) - 60).Top(float32(my) - 11).Width(120).Height(22).Justify(ui.Center).AlignItems(ui.Center).Label(el.ID)
 	if v.mode == modeDesign {

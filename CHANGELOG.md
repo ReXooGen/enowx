@@ -4,6 +4,8 @@ Each version's section is also what the app's update dialog shows.
 
 ## Unreleased
 
+- **Canvas:** connectors can turn at 90°, with horizontal or vertical routing; agent activity floats in a pill inside the canvas. OMP chat separates recorded thoughts and tool results, keeps tool errors visible and previews embedded images.
+
 - **Canvas workflow:** reusable linked HTML components, per-element version review, layout and readability checks at three preview widths, shape selection and arrangement, click/hover prototype transitions, and self-contained offline HTML exports. See [Canvas workflow](docs/canvas-workflow.md) for controls and export limits.
 
 ## 0.3.1

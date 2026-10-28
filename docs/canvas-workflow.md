@@ -4,6 +4,8 @@ Open a canvas and choose **Canvas tools** in the toolbar. The workflow panel has
 
 The Canvas agent panel offers **Chat / Terminal** for agents with transcript support, including OMP. Terminal shows the same running session's live CLI, including progress, errors and prompts that may not appear in its transcript. Switching views does not restart the agent.
 
+OMP chat separates the thoughts it records from tool calls and their results. Tool results attach to their calls, failures remain marked, and embedded images show small previews. Images are decoded on the host into bounded thumbnails; unsupported or oversized images show a placeholder. This does not enable vision for a model that does not support it. Remote sessions need the updated daemon to send these details.
+
 ## Library
 
 Select an HTML mockup element, enter a name and choose **Save selected component**. Insert a saved component into another design. **Update** replaces the saved definition from the selection and updates its linked instances across canvases on this host. Each insertion gets unique IDs, including label and accessibility references. Removing a definition keeps existing instances.
@@ -21,6 +23,8 @@ Choose **Check this design** to inspect shape geometry and mockup layouts at 144
 These are heuristics, not an accessibility certification. Decorative overlaps, image backgrounds and dynamic states need manual review. Preview copies do not execute scripts; generated markup and current styles are inspected. Checks examine at most 2,000 nodes per preview and report up to 150 findings.
 
 ## Arrange
+
+Select a connector to change **Routing**: Straight, Elbow 90° (automatic), Elbow horizontal or Elbow vertical. New connectors made with Connect use 90° turns. Endpoints follow their shapes, and the same route is used in SVG, HTML, PNG and PDF exports. Routing does not avoid unrelated shapes automatically.
 
 Shift-click shapes to select several, or use **Select all shapes** / Ctrl/⌘+A. Align edges or centers, distribute three or more shapes with equal gaps, group, ungroup, lock or unlock. Dragging a selection moves it together in one undoable edit. Grouped shapes select together. Ctrl/⌘+G groups; Ctrl/⌘+Shift+G ungroups. Locked shapes must be unlocked before changing or deleting them. These operations apply to native shapes; HTML elements retain their existing single-element editor.
 

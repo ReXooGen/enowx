@@ -153,8 +153,8 @@ func (r runner) shapeFrom(c proto.Canvas, f *canvasFlags) (proto.CanvasElement, 
 	set := map[string]bool{}
 	f.fs.Visit(func(fl *flag.Flag) { set[fl.Name] = true })
 	strs := map[string]*string{"type": &el.Type, "text": &el.Text, "fill": &el.Fill, "stroke": &el.Stroke, "color": &el.Color,
-		"from": &el.From, "to": &el.To, "src": &el.Src}
-	vals := map[string]*string{"type": f.typ, "text": f.text, "fill": f.fill, "stroke": f.stroke, "color": f.color, "from": f.from, "to": f.to, "src": f.src}
+		"from": &el.From, "to": &el.To, "src": &el.Src, "routing": &el.Routing}
+	vals := map[string]*string{"type": f.typ, "text": f.text, "fill": f.fill, "stroke": f.stroke, "color": f.color, "from": f.from, "to": f.to, "src": f.src, "routing": f.routing}
 	for k, p := range strs {
 		if set[k] {
 			*p = *vals[k]

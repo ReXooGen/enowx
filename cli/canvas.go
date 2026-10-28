@@ -28,7 +28,7 @@ const canvasUsage = `usage: enowx-app canvas COMMAND (CANVAS: its ID or title; F
   patch CANVAS --element E --text TEXT            what element E says (HTML inside it, or a shape's text)
   shape CANVAS [--frame F] [--id E] --type rect|ellipse|diamond|text|sticky|line|arrow|image
         [--x N --y N --w N --h N] [--text T] [--fill #RRGGBB] [--stroke #RRGGBB] [--color #RRGGBB]
-        [--size N] [--bold] [--radius N] [--from E --to E] [--src ASSET]
+        [--size N] [--bold] [--radius N] [--from E --to E] [--routing straight|elbow|elbow-x|elbow-y] [--src ASSET]
                                    add a shape, or change shape E (only what is given)
   remove CANVAS --element E [--frame F]           remove an HTML element or a shape
   frame CANVAS add NAME [--size WxH] | set F [--name N] [--size WxH] [--background #RRGGBB] | rm F
@@ -61,14 +61,14 @@ func parseAll(fs *flag.FlagSet, args []string) ([]string, error) {
 
 // canvasFlags are every command's flags.
 type canvasFlags struct {
-	fs                                    *flag.FlagSet
-	kind, group, project, frame, html     *string
-	element, into, text, typ, id          *string
-	fill, stroke, color, from, to, src    *string
-	format, out, name, size, background   *string
-	x, y, w, h, fontSize, radius, strokeW *float64
-	bold, showHTML, all                   *bool
-	frames                                []string
+	fs                                          *flag.FlagSet
+	kind, group, project, frame, html           *string
+	element, into, text, typ, id                *string
+	fill, stroke, color, from, to, src, routing *string
+	format, out, name, size, background         *string
+	x, y, w, h, fontSize, radius, strokeW       *float64
+	bold, showHTML, all                         *bool
+	frames                                      []string
 }
 
 func newCanvasFlags(cmd string) *canvasFlags {
@@ -78,7 +78,7 @@ func newCanvasFlags(cmd string) *canvasFlags {
 	for p, name := range map[**string]string{&f.kind: "kind", &f.group: "group", &f.project: "project", &f.element: "element",
 		&f.into: "into", &f.text: "text", &f.typ: "type", &f.id: "id", &f.fill: "fill", &f.stroke: "stroke", &f.color: "color",
 		&f.from: "from", &f.to: "to", &f.src: "src", &f.format: "format", &f.out: "out", &f.name: "name", &f.size: "size",
-		&f.background: "background"} {
+		&f.background: "background", &f.routing: "routing"} {
 		*p = fs.String(name, "", "")
 	}
 	f.frame = fs.String("frame-ref", "", "")

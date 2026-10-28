@@ -60,10 +60,10 @@ var canvasCoreTools = []mcpTool{
 			"x":    {"number", "Left"}, "y": {"number", "Top"}, "w": {"number", "Width"}, "h": {"number", "Height"},
 			"text": {"string", "What it says"}, "fill": {"string", "#RRGGBB, or none"}, "stroke": {"string", "#RRGGBB, or none"}, "color": {"string", "Its text's #RRGGBB"},
 			"size": {"number", "Its text's size"}, "bold": {"boolean", "Bold text"}, "radius": {"number", "Corner radius"},
-			"from": {"string", "An arrow's start: a shape's id"}, "to": {"string", "An arrow's end: a shape's id"}, "src": {"string", "An image's asset or URL"}},
+			"from": {"string", "An arrow's start: a shape's id"}, "to": {"string", "An arrow's end: a shape's id"}, "src": {"string", "An image's asset or URL"}, "routing": {"string", "straight, elbow (automatic 90 degree turns), elbow-x or elbow-y"}},
 		required: []string{"canvas"},
 		args: func(a map[string]any) []string {
-			return canvasArgs(a, "shape", "frame", "id", "type", "x", "y", "w", "h", "text", "fill", "stroke", "color", "size", "bold", "radius", "from", "to", "src")
+			return canvasArgs(a, "shape", "frame", "id", "type", "x", "y", "w", "h", "text", "fill", "stroke", "color", "size", "bold", "radius", "from", "to", "src", "routing")
 		}},
 	{name: "canvas_remove", description: "Remove an HTML element or a shape from a frame.",
 		props: map[string]mcpProp{"canvas": canvasProp, "element": {"string", "Its id"}, "frame": frameProp}, required: []string{"canvas", "element"},

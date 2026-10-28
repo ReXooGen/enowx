@@ -76,12 +76,16 @@ func svgElement(b *strings.Builder, f proto.CanvasFrame, el proto.CanvasElement,
 		cx, cy := el.X+el.W/2, el.Y+el.H/2
 		fmt.Fprintf(b, `<polygon points="%g,%g %g,%g %g,%g %g,%g" %s/>`, cx, el.Y, el.X+el.W, cy, cx, el.Y+el.H, el.X, cy, paint())
 	case proto.ShapeLine, proto.ShapeArrow:
-		x1, y1, x2, y2 := Ends(f, el)
+		points := ConnectorPath(f, el)
 		marker := ""
 		if el.Type == proto.ShapeArrow {
 			marker = ` marker-end="url(#arrow)"`
 		}
-		fmt.Fprintf(b, `<line x1="%g" y1="%g" x2="%g" y2="%g" %s%s/>`, x1, y1, x2, y2, paint(), marker)
+		b.WriteString(`<polyline points="`)
+		for _, point := range points {
+			fmt.Fprintf(b, "%g,%g ", point.X, point.Y)
+		}
+		fmt.Fprintf(b, `" %s%s/>`, paint(), marker)
 	case proto.ShapeImage:
 		fmt.Fprintf(b, `<image x="%g" y="%g" width="%g" height="%g" href="%s" preserveAspectRatio="xMidYMid slice"/>`, el.X, el.Y, el.W, el.H, attrEsc(imageSrc(el.Src, assets)))
 	}
@@ -94,9 +98,9 @@ func svgElement(b *strings.Builder, f proto.CanvasFrame, el proto.CanvasElement,
 			x, anchor = el.X+el.W-8, "end"
 		}
 		if el.Type == proto.ShapeLine || el.Type == proto.ShapeArrow {
-			x1, y1, x2, y2 := Ends(f, el)
-			x, anchor = (x1+x2)/2, "middle"
-			el.Y, el.H = (y1+y2)/2-st.FontSize, st.FontSize
+			mx, my := ConnectorMiddle(ConnectorPath(f, el))
+			x, anchor = mx, "middle"
+			el.Y, el.H = my-st.FontSize, st.FontSize
 		}
 		weight := "400"
 		if el.Bold {

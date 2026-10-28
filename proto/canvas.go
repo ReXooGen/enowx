@@ -142,6 +142,7 @@ type CanvasElement struct {
 	Radius      float64 `json:"radius,omitempty"`
 	From        string  `json:"from,omitempty"`
 	To          string  `json:"to,omitempty"`
+	Routing     string  `json:"routing,omitempty"` // straight (default), elbow, elbow-x, elbow-y
 	Src         string  `json:"src,omitempty"`
 }
 

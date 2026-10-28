@@ -227,6 +227,12 @@ func checkElement(el *proto.CanvasElement, f *proto.CanvasFrame) error {
 	if !slices.Contains(shapes, el.Type) {
 		return fmt.Errorf("canvas: no shape %q: %s", el.Type, strings.Join(shapes, ", "))
 	}
+	if !slices.Contains([]string{"", "straight", "elbow", "elbow-x", "elbow-y"}, el.Routing) {
+		return fmt.Errorf("canvas: routing must be straight, elbow, elbow-x or elbow-y")
+	}
+	if el.Routing != "" && el.Type != proto.ShapeLine && el.Type != proto.ShapeArrow {
+		return fmt.Errorf("canvas: routing only applies to lines and arrows")
+	}
 	if el.ID == "" {
 		for n := len(f.Elements) + 1; ; n++ {
 			id := fmt.Sprintf("%s-%d", el.Type, n)

@@ -148,16 +148,22 @@ func (r rasterizer) element(f proto.CanvasFrame, el proto.CanvasElement, assets 
 		cx, cy := el.X+el.W/2, el.Y+el.H/2
 		shape = []pt{{cx, el.Y}, {el.X + el.W, cy}, {cx, el.Y + el.H}, {el.X, cy}}
 	case proto.ShapeLine, proto.ShapeArrow:
-		x1, y1, x2, y2 := Ends(f, el)
+		points := ConnectorPath(f, el)
 		if hasStroke {
-			r.line(pt{x1, y1}, pt{x2, y2}, st.StrokeWidth, stroke)
+			for i := 1; i < len(points); i++ {
+				a, b := points[i-1], points[i]
+				r.line(pt{a.X, a.Y}, pt{b.X, b.Y}, st.StrokeWidth, stroke)
+			}
 			if el.Type == proto.ShapeArrow {
+				a, b := points[len(points)-2], points[len(points)-1]
+				x1, y1, x2, y2 := a.X, a.Y, b.X, b.Y
 				ax, ay, bx, by := ArrowHead(x1, y1, x2, y2, 8+st.StrokeWidth*2)
 				r.fill([]pt{{x2, y2}, {ax, ay}, {bx, by}}, stroke)
 			}
 		}
 		if el.Text != "" {
-			el.X, el.Y, el.W, el.H = (x1+x2)/2-100, (y1+y2)/2-st.FontSize*1.6, 200, st.FontSize*1.4
+			mx, my := ConnectorMiddle(points)
+			el.X, el.Y, el.W, el.H = mx-100, my-st.FontSize*1.6, 200, st.FontSize*1.4
 			r.text(el, st)
 		}
 		return

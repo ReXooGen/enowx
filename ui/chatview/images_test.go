@@ -44,7 +44,7 @@ func TestOMPWorkShowsThinkingToolsAndVision(t *testing.T) {
 		ui.Column(c).Width(420).Height(900).Padding(14).Gap(10).Background(theme.Background).TextColor(theme.Text).Children(func() { ch.turn(c, turns[0], true, false) })
 	}, 420, 900)
 	tt.Frame()
-	for _, text := range []string{"Thought", "Inspecting spacing and alignment.", "Design 1 · Checkout", "Image", "The design is ready to review."} {
+	for _, text := range []string{"Thinking", "Inspecting spacing and alignment.", "Design 1 · Checkout", "Image", "The design is ready to review."} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %q: %q", text, tt.Texts())
 		}

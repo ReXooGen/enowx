@@ -163,6 +163,24 @@ func (ch *Chat) editBack() int {
 // headed by what it did so far: the chip over the composer says it is
 // working, and for how long.
 func (ch *Chat) work(c *ui.Context, t turn, running bool) {
+	var thoughts, work []proto.TranscriptEntry
+	for _, entry := range t.work {
+		if entry.Kind == proto.TranscriptThinking {
+			thoughts = append(thoughts, entry)
+		} else {
+			work = append(work, entry)
+		}
+	}
+	if len(thoughts) > 0 {
+		ch.thoughts(c.Key("thoughts"), thoughts, running)
+	}
+	if len(work) > 0 {
+		t.work = work
+		ch.workSection(c.Key("tools"), t, running)
+	}
+}
+
+func (ch *Chat) workSection(c *ui.Context, t turn, running bool) {
 	if running && len(t.work) == 0 {
 		return
 	}

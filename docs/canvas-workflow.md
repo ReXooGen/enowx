@@ -6,6 +6,14 @@ The Canvas agent panel offers **Chat / Terminal** for agents with transcript sup
 
 OMP chat separates the thoughts it records from tool calls and their results. Tool results attach to their calls, failures remain marked, and embedded images show small previews. Images are decoded on the host into bounded thumbnails; unsupported or oversized images show a placeholder. This does not enable vision for a model that does not support it. Remote sessions need the updated daemon to send these details.
 
+## Agent controls
+
+**Model / provider** in the Canvas agent's composer selects a configured model before starting a conversation or switches an idle session. For OMP, enter an optional provider ID and a model ID, or choose **Browse in Terminal** to use OMP's own model picker. Finish the current task before applying a change. This selects existing configuration; it does not add provider credentials.
+
+Recorded **Thinking / Thoughts** has its own visible preview and expandable details, independent of the folded tool history.
+
+The activity pill inside the Canvas follows the session's Working and Needs input states, including time spent thinking or running tools before the first canvas edit.
+
 ## Library
 
 Select an HTML mockup element, enter a name and choose **Save selected component**. Insert a saved component into another design. **Update** replaces the saved definition from the selection and updates its linked instances across canvases on this host. Each insertion gets unique IDs, including label and accessibility references. Removing a definition keeps existing instances.

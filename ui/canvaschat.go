@@ -25,11 +25,13 @@ import (
 
 // hostCanvasChat is a canvas's conversation with its agent, as last read.
 type hostCanvasChat struct {
-	canvas   string
-	log      proto.CanvasChatLog
-	loaded   bool
-	history  bool // its messages listed, with their versions
-	terminal bool // show the agent's live CLI instead of its transcript
+	canvas                    string
+	log                       proto.CanvasChatLog
+	loaded                    bool
+	history                   bool // its messages listed, with their versions
+	terminal                  bool // show the agent's live CLI instead of its transcript
+	modelOpen                 bool
+	modelDraft, providerDraft string
 }
 
 // canvasChatOf is canvas id's conversation, read anew when another canvas
@@ -116,6 +118,7 @@ func (a *App) canvasAssistant(c *ui.Context, cv proto.Canvas) {
 	agentID := a.canvasAgentOf(hc.log)
 	s, ok := a.canvasSession(cv.ID, agentID)
 	a.canvasChatHeader(c, cv, hc, agentID, s, ok)
+	a.canvasModelDialog(c, hc, agentID, s, ok)
 	if agentID == "" {
 		ui.Text(c, "No agent is installed on "+a.host.Name+".").FontSize(12).TextColor(theme.Muted).Padding(16)
 		return
@@ -139,9 +142,10 @@ func (a *App) canvasAssistant(c *ui.Context, cv proto.Canvas) {
 	case chatview.Supported(s) && !hc.terminal:
 		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 			a.chatViewSending(c.Key("chat:"+s.ID), s, shown, chatTweaks{
-				send:     func(text string, files []string) { a.canvasSend(cv.ID, s, text, files) },
-				paste:    func(ch *chatview.Chat, text string) bool { return a.canvasPaste(cv.ID, ch, text) },
-				showUser: canvas.WithoutContext,
+				send:        func(text string, files []string) { a.canvasSend(cv.ID, s, text, files) },
+				paste:       func(ch *chatview.Chat, text string) bool { return a.canvasPaste(cv.ID, ch, text) },
+				showUser:    canvas.WithoutContext,
+				chooseModel: a.canvasChooseModel(cv.ID, agentID),
 			})
 		})
 	case p != nil:
@@ -221,11 +225,12 @@ var canvasSuggestions = []notesSuggestion{
 func (a *App) canvasStart(c *ui.Context, cv proto.Canvas, agentID string) {
 	ch := a.chatOf("canvas-new:" + cv.ID + ":" + agentID)
 	ch.View(c, chatview.Options{
-		Agent:     agentID,
-		AgentName: a.agentName(agentID),
-		Fresh:     true,
-		Send:      func(text string, files []string) { a.canvasAsk(cv, agentID, text, files) },
-		Paste:     func(text string) bool { return a.canvasPaste(cv.ID, ch, text) },
+		Agent:       agentID,
+		AgentName:   a.agentName(agentID),
+		Fresh:       true,
+		ChooseModel: a.canvasChooseModel(cv.ID, agentID),
+		Send:        func(text string, files []string) { a.canvasAsk(cv, agentID, text, files) },
+		Paste:       func(text string) bool { return a.canvasPaste(cv.ID, ch, text) },
 		Set: func(setting, id string) {
 			switch setting {
 			case "model":

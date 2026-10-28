@@ -302,6 +302,8 @@ type Options struct {
 	// Set changes a setting ("model", "mode" or "effort") to the agent's
 	// value id.
 	Set func(setting, id string)
+	// ChooseModel opens the host's provider/model controls, when available.
+	ChooseModel func()
 	// Paste sees a paste into the composer, with the clipboard's text ("" for
 	// an image or files), and reports whether it took it: the app attaches
 	// an image or files with Attach.

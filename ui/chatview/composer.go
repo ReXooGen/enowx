@@ -172,6 +172,9 @@ func (ch *Chat) box(c *ui.Context, o Options) {
 				ch.focus = true
 			}
 			ch.settings(c, o)
+			if o.ChooseModel != nil && widget.Button(c.Key("choose-model"), widget.Secondary, icon.CPU, "Model / provider", "").Height(28).PaddingX(8).Clicked() {
+				o.ChooseModel()
+			}
 			ui.Spacer(c)
 			ch.contextMeter(c)
 			if o.Working && strings.TrimSpace(ch.input) == "" && len(ch.attachments) == 0 {
@@ -276,7 +279,7 @@ func roundButton(c *ui.Context, svg *ui.SVG, label string, off bool) ui.Element 
 // model, its permission mode, its effort.
 func (ch *Chat) settings(c *ui.Context, o Options) {
 	set := agent.SettingsOf(o.Agent)
-	if len(set.Models) > 0 {
+	if len(set.Models) > 0 && o.ChooseModel == nil {
 		ch.setting(c, o, "model", icon.CPU, set.Models, ch.model, "Model")
 	}
 	if len(set.Modes) > 0 && set.ModeKey != "" {

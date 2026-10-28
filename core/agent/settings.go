@@ -144,6 +144,8 @@ func SettingsOf(id string) Settings {
 		return claudeSettings
 	case "codex":
 		return codexSettings
+	case "omp":
+		return Settings{ModelFlag: []string{"--model", "%s"}, ModelCommand: "/model %s"}
 	}
 	return Settings{}
 }

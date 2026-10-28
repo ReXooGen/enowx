@@ -91,7 +91,12 @@ func (ch *Chat) turn(c *ui.Context, t turn, running, animate bool) {
 				})
 				continue
 			}
-			widget.MarkdownLinks(c.Key(i), e.Text, ch.links)
+			ui.Column(c.Key(i)).FillWidth().Gap(8).Children(func() {
+				transcriptImages(c, e.Images)
+				if e.Text != "" {
+					widget.MarkdownLinks(c, e.Text, ch.links)
+				}
+			})
 		}
 	})
 }
@@ -129,6 +134,7 @@ func (ch *Chat) userMessage(c *ui.Context, e proto.TranscriptEntry, running bool
 			text = ch.showUser(text)
 		}
 		bubble.Children(func() {
+			transcriptImages(c, e.Images)
 			ui.Text(c, text).TextColor(theme.TextStrong).Selectable()
 		})
 	})
@@ -327,6 +333,7 @@ func toolLook(name string) (*ui.SVG, string) {
 // toolBody is what an open tool call shows: the change an edit made, else
 // what the tool answered.
 func toolBody(c *ui.Context, e proto.TranscriptEntry) {
+	transcriptImages(c, e.Images)
 	if e.Old != "" || e.New != "" {
 		var b strings.Builder
 		for _, l := range strings.Split(e.Old, "\n") {
@@ -341,7 +348,9 @@ func toolBody(c *ui.Context, e proto.TranscriptEntry) {
 		return
 	}
 	if e.Result == "" {
-		ui.Text(c, "No output yet.").FontSize(12).TextColor(theme.Muted)
+		if len(e.Images) == 0 {
+			ui.Text(c, "No output yet.").FontSize(12).TextColor(theme.Muted)
+		}
 		return
 	}
 	ui.Text(c, e.Result).Font(theme.MonoFont).FontSize(11).TextColor(theme.TextSoft).Padding(8, 10).Radius(theme.RadiusControl).

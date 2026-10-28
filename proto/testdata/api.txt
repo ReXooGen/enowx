@@ -327,6 +327,7 @@ field CanvasElement.h float64
 field CanvasElement.id string
 field CanvasElement.locked bool
 field CanvasElement.radius float64
+field CanvasElement.routing string
 field CanvasElement.src string
 field CanvasElement.stroke string
 field CanvasElement.strokeWidth float64
@@ -1540,6 +1541,7 @@ field TranscriptEntry.detail string
 field TranscriptEntry.done bool
 field TranscriptEntry.durationMs int64
 field TranscriptEntry.failed bool
+field TranscriptEntry.images []TranscriptImage
 field TranscriptEntry.index int
 field TranscriptEntry.kind string
 field TranscriptEntry.new string
@@ -1549,6 +1551,8 @@ field TranscriptEntry.result string
 field TranscriptEntry.rev int64
 field TranscriptEntry.text string
 field TranscriptEntry.time time.Time
+field TranscriptImage.name string
+field TranscriptImage.thumbnail []byte
 field TranscriptParams.before int
 field TranscriptParams.id string
 field TranscriptParams.since int64

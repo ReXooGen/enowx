@@ -47,17 +47,20 @@ func TestOMPReader(t *testing.T) {
 	if r.Model != "my-model" {
 		t.Errorf("Model = %q, want %q", r.Model, "my-model")
 	}
-	if r.Len() != 2 {
-		t.Fatalf("Len() = %d, want 2", r.Len())
+	if r.Len() != 3 {
+		t.Fatalf("Len() = %d, want 3", r.Len())
 	}
 	entries, _ := r.Since(0)
-	if len(entries) != 2 {
-		t.Fatalf("len(entries) = %d, want 2", len(entries))
+	if len(entries) != 3 {
+		t.Fatalf("len(entries) = %d, want 3", len(entries))
 	}
 	if got := entries[0]; got.Kind != proto.TranscriptUser || got.Text != "Halo" {
 		t.Errorf("Entry[0] = %+v", got)
 	}
-	if got := entries[1]; got.Kind != proto.TranscriptAssistant || got.Text != "Halo juga!" {
-		t.Errorf("Entry[1] = %+v", got)
+	if got := entries[1]; got.Kind != proto.TranscriptThinking || got.Text != "Thinking..." {
+		t.Errorf("thinking entry: %+v", got)
+	}
+	if got := entries[2]; got.Kind != proto.TranscriptAssistant || got.Text != "Halo juga!" {
+		t.Errorf("Entry[2] = %+v", got)
 	}
 }

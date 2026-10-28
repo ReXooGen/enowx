@@ -9,8 +9,6 @@ import (
 	"slices"
 	"strings"
 	"time"
-
-	"github.com/enowx/enowx/proto"
 )
 
 var ompUUID = regexp.MustCompile(`_([0-9a-fA-F-]+)\.jsonl$`)
@@ -108,15 +106,24 @@ type ompRecord struct {
 	Model     string    `json:"model"`
 	Timestamp time.Time `json:"timestamp"`
 	Message   struct {
-		Role    string          `json:"role"`
-		Content json.RawMessage `json:"content"`
+		Role         string          `json:"role"`
+		Content      json.RawMessage `json:"content"`
+		ToolCallID   string          `json:"toolCallId"`
+		ToolName     string          `json:"toolName"`
+		IsError      bool            `json:"isError"`
+		Model        string          `json:"model"`
+		ErrorMessage string          `json:"errorMessage"`
 	} `json:"message"`
 }
 
 type ompContentBlock struct {
-	Type     string `json:"type"`
-	Text     string `json:"text"`
-	Thinking string `json:"thinking"`
+	Type      string          `json:"type"`
+	Text      string          `json:"text"`
+	Thinking  string          `json:"thinking"`
+	ID        string          `json:"id"`
+	Name      string          `json:"name"`
+	Arguments json.RawMessage `json:"arguments"`
+	Data      string          `json:"data"`
 }
 
 func (p *ompParser) parse(line []byte, r *Reader) {
@@ -131,37 +138,5 @@ func (p *ompParser) parse(line []byte, r *Reader) {
 	if rec.Type != "message" {
 		return
 	}
-	var text string
-	if json.Unmarshal(rec.Message.Content, &text) == nil {
-		p.addText(r, rec.Message.Role, text, rec.Timestamp)
-		return
-	}
-	var blocks []ompContentBlock
-	if json.Unmarshal(rec.Message.Content, &blocks) == nil {
-		var sb strings.Builder
-		for _, b := range blocks {
-			if b.Type == "text" && b.Text != "" {
-				sb.WriteString(b.Text)
-			}
-		}
-		if sb.Len() > 0 {
-			p.addText(r, rec.Message.Role, sb.String(), rec.Timestamp)
-		}
-	}
-}
-
-func (p *ompParser) addText(r *Reader, role, text string, at time.Time) {
-	text = strings.TrimSpace(text)
-	if text == "" {
-		return
-	}
-	kind := proto.TranscriptAssistant
-	if role == "user" {
-		kind = proto.TranscriptUser
-	}
-	r.add(proto.TranscriptEntry{
-		Kind: kind,
-		Time: at,
-		Text: text,
-	})
+	p.message(r, rec)
 }

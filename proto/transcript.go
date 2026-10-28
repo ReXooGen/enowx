@@ -92,7 +92,14 @@ type TranscriptEntry struct {
 	Added   int    `json:"added,omitempty"`
 	Removed int    `json:"removed,omitempty"`
 	// Thoughts: how long the agent thought, in milliseconds.
-	DurationMs int64 `json:"durationMs,omitempty"`
+	DurationMs int64             `json:"durationMs,omitempty"`
+	Images     []TranscriptImage `json:"images,omitempty"`
+}
+
+// TranscriptImage is an embedded image's bounded JPEG preview, never a remote URL.
+type TranscriptImage struct {
+	Name      string `json:"name"`
+	Thumbnail []byte `json:"thumbnail,omitempty"`
 }
 
 // MethodSessionCommands lists the slash commands of a session's agent:

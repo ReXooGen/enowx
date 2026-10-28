@@ -9,6 +9,7 @@ import (
 	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
 
+	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/canvas"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/chatview"
@@ -219,7 +220,7 @@ func (a *App) canvasChatHeader(c *ui.Context, cv proto.Canvas, hc *hostCanvasCha
 
 // canvasSuggestions are asks the panel offers before a conversation.
 var canvasSuggestions = []notesSuggestion{
-	{icon.Layers, "Variations", "Five takes on this design", "Make 5 variations of this design, each a design of its own with a line on what it tries"},
+	{icon.Layers, "Variations", "Five distinct design directions", agent.CanvasVariationsRequest},
 	{icon.Laptop, "Responsive", "Tablet and mobile frames", "Make tablet and mobile designs of this one, laid out for each"},
 	{icon.Target, "Critique", "What to fix, by priority", "Critique this design: hierarchy, spacing, contrast, copy; then fix the top three"},
 	{icon.Palette, "Restyle", "A dark theme of it", "Make a dark theme variant of this design as a new design"},
@@ -322,7 +323,7 @@ func (a *App) canvasAsk(cv proto.Canvas, agentID, text string, files []string) {
 	if cl == nil {
 		return
 	}
-	params := proto.SessionCreateParams{Agent: agentID, CanvasFor: cv.ID, Prompt: a.canvasContext(cv) + withFiles(text, files), Cols: 100, Rows: 40,
+	params := proto.SessionCreateParams{Agent: agentID, CanvasFor: cv.ID, Prompt: withFiles(canvasGuidedMessage(a.canvasContext(cv), text), files), Cols: 100, Rows: 40,
 		Model: a.notesModel[agentID], Effort: a.notesEffort[agentID]}
 	go func() {
 		info, err := cl.CreateSession(params)
@@ -351,7 +352,7 @@ func (a *App) canvasSend(id string, s proto.SessionInfo, text string, files []st
 		return
 	}
 	// Pasted, so that the context's line break doesn't send it early.
-	a.pasteToSession(s.ID, a.canvasContext(*cv)+withFiles(text, files))
+	a.pasteToSession(s.ID, withFiles(canvasGuidedMessage(a.canvasContext(*cv), text), files))
 	if cl := a.client; cl != nil {
 		go func() { _, _ = cl.CanvasChat(proto.CanvasChatParams{ID: id, Text: text, Files: files, Session: s.ID}) }()
 	}

@@ -96,9 +96,9 @@ Screenshots (canvas screenshot) are made by the app too, so they show libraries 
 - Contrast: text at least 4.5:1 on its background (3:1 for large text and icons); never grey on grey; test the dark variant too.
 - Responsive: each device a design of its own on its own grid (desktop 12, tablet 8, mobile 4 columns), not a squeezed desktop; nothing wider than its frame; tap targets 44 px on mobile.
 - Use the project's design system when there is one: Tailwind config (theme colors, fonts, radius), shadcn/ui (components.json, CSS variables --background, --foreground, --primary, --muted, --border, --radius), a tokens or theme file, existing components. Read them and reuse the names and values; otherwise use the defaults below.
-- Defaults: font Inter, system-ui; text #0f172a, muted #64748b, border #e2e8f0, surface #ffffff on page #f8fafc, primary #2563eb (hover #1d4ed8), success #16a34a, danger #dc2626; radius 8px (cards 12px); shadow 0 1px 2px rgba(15,23,42,.06), 0 4px 12px rgba(15,23,42,.06).
+- Without project tokens, choose typography, surfaces and a restrained accent for the actual purpose and audience. Keep that system coherent within a frame. Existing brand decisions take priority; avoid assigning the same font, blue accent, rounded cards and decoration to every design.
 - Type scale 12/14/16/20/24/32/40, line height 1.5 for text, 1.2 for headings; weights 400, 500, 600. Spacing on a 4px grid: 4 8 12 16 24 32 48 64. Content width 1120–1200px, centered.
-- Hierarchy: one primary action per screen; secondary actions as outline or ghost buttons; real copy, not lorem ipsum: names, numbers, dates that fit the product.
+- Hierarchy: one primary action per screen; secondary actions as outline or ghost buttons. Preserve source copy and facts; clearly label any necessary example content. Never invent names, dates or metrics as product facts.
 - Contrast at least 4.5:1 for text; visible focus rings; labels on every input; empty, loading and error states where they matter.
 - Icons are inline SVG (24×24 viewBox, stroke="currentColor", stroke-width 2, round caps), never emoji or icon fonts.
 - Layout with flexbox and grid; no absolute positioning for layout; no fixed heights on text containers.
@@ -120,5 +120,5 @@ Table:
 Modal:
     <div id="modal" style="position:fixed;inset:0;background:rgba(15,23,42,.4);display:grid;place-items:center">
       <div role="dialog" style="width:440px;background:#fff;border-radius:12px;padding:24px;display:grid;gap:16px">…</div></div>
-Layouts: sidebar app (grid-template-columns:240px 1fr), dashboard (cards in grid-template-columns:repeat(auto-fit,minmax(220px,1fr)) gap 16px), landing (hero, logos, features in 3 columns, pricing, footer), settings (sections with a heading, a line of help and fields).
-`
+Layouts: derive structure from the user's task, content and existing project. Use a sidebar for real navigation, a table for comparable records, a list for ordered work and cards for independently meaningful objects. Marketing sections need actual supplied content and a reason to exist; do not append logos, feature grids, pricing or testimonials automatically.
+` + "\n\n" + CanvasVariationsGuide

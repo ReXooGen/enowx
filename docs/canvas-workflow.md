@@ -8,6 +8,8 @@ OMP chat separates the thoughts it records from tool calls and their results. To
 
 ## Agent controls
 
+**Variations** uses a reusable design brief in `core/agent/canvas_variations.go`. It asks for five distinct hypotheses with rationale and trade-offs, keeps source content and diagram relationships, follows project tokens, and checks the rendered results. New agents receive the brief in their Canvas guide; the preset also sends it to existing conversations without expanding the visible chat message.
+
 Use `/model` in OMP's Terminal view to change its model or provider.
 
 Recorded **Thinking / Thoughts** has its own visible preview and expandable details, independent of the folded tool history.
